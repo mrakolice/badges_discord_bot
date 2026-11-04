@@ -11,7 +11,8 @@ from src.db.templates import TEMPLATE_SUFFIX
 
 SRC_ROOT = Path(__file__).resolve().parents[2] / "src"
 QUERIES_MODULE = SRC_ROOT / "db" / "queries.py"
-TEMPLATE_NAME_LITERAL = re.compile(r"""["'][a-z_]+/[a-z0-9_]+["']""")
+DOMAINS = sorted({m.value.split("/")[0] for group in ALL_QUERY_GROUPS for m in group})
+TEMPLATE_NAME_LITERAL = re.compile(rf"""["']({"|".join(DOMAINS)})/[a-z0-9_]+["']""")
 TEMPLATE_NAMES = sorted(
     p.relative_to(SQL_ROOT).as_posix().removesuffix(TEMPLATE_SUFFIX)
     for p in SQL_ROOT.rglob("*" + TEMPLATE_SUFFIX)

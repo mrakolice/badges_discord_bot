@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 
 from src.db.base import QueryExecutor, Row
-from src.db.queries import ChannelRegistry, Follows, Query
+from src.db.queries import Announcements, ChannelRegistry, Follows, Query
 from src.db.templates import SqlTemplates
 from src.storage import Storage
 
@@ -101,8 +101,7 @@ async def test_upsert_campaign_reports_new(fake: FakeExecutor) -> None:
         "campaign_id": "c1",
         "campaign_type": "drop",
         "first_seen_at": NOW,
-        "last_notified_at": None,
-        "ending_notified_at": None,
+        "last_seen_at": NOW,
         "data_json": {"name": "X"},
         "inserted": True,
     }
@@ -110,19 +109,22 @@ async def test_upsert_campaign_reports_new(fake: FakeExecutor) -> None:
     assert is_new and campaign.data_json == {"name": "X"}
 
 
-async def test_mark_campaign_notified_quotes_column(fake: FakeExecutor) -> None:
-    await Storage(fake).mark_campaign_notified("c1", "drop", "ending_notified_at")
-    assert 'SET "ending_notified_at" = now()' in fake.sent[0][0]
+async def test_ensure_channel_without_row_raises(fake: FakeExecutor) -> None:
+    with pytest.raises(RuntimeError):
+        await Storage(fake).ensure_channel(1, 2, "x")
 
 
-async def test_mark_campaign_notified_rejects_other_columns(fake: FakeExecutor) -> None:
-    with pytest.raises(ValueError):
-        await Storage(fake).mark_campaign_notified("c1", "drop", "data_json")  # type: ignore[arg-type]
-    assert fake.calls == []
+async def test_claim_delivery(fake: FakeExecutor) -> None:
+    fake.result = NOW
+    assert await Storage(fake).claim_delivery(1, "c1", "drop", "ending")
+    assert fake.calls[0] == (
+        Announcements.CLAIM,
+        {"channel_id": 1, "campaign_id": "c1", "campaign_type": "drop", "kind": "ending"},
+    )
 
 
-async def test_was_stream_notified_today_uses_utc_midnight(fake: FakeExecutor) -> None:
-    fake.result = False
-    assert not await Storage(fake).was_stream_notified_today(1, "g", "streamer")
-    since = fake.calls[0][1]["since"]
-    assert since.tzinfo is UTC and (since.hour, since.minute) == (0, 0)
+async def test_claim_stream_notification_passes_cooldown(fake: FakeExecutor) -> None:
+    fake.result = None
+    assert not await Storage(fake).claim_stream_notification(1, "g", "streamer", 6)
+    sql, args = fake.sent[0]
+    assert "make_interval(hours => $4)" in sql and args == (1, "g", "streamer", 6)

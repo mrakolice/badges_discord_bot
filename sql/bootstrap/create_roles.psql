@@ -1,0 +1,66 @@
+-- One-time, idempotent setup on the shared Postgres; run as superuser via
+-- `docker compose --profile bootstrap run --rm db-bootstrap`.
+-- Not a Jinja template: CREATE ROLE/DATABASE can't take bound parameters, so values are
+-- quoted by format(%I / %L) from psql variables read out of the environment.
+--
+-- Roles:
+--   owner — owns the database and schema, runs migrations (DDL), never used by the bot.
+--   app   — what the bot connects as: DML only, can't change the schema.
+
+\set ON_ERROR_STOP on
+\getenv db_name BOT_DB_NAME
+\getenv owner_role BOT_DB_OWNER
+\getenv owner_password BOT_DB_OWNER_PASSWORD
+\getenv app_role BOT_DB_APP_USER
+\getenv app_password BOT_DB_APP_PASSWORD
+
+SELECT (:'db_name' = '' OR :'owner_role' = '' OR :'app_role' = ''
+        OR :'owner_password' = '' OR :'app_password' = '') AS missing_settings \gset
+\if :missing_settings
+    \warn 'BOT_DB_NAME, BOT_DB_OWNER(_PASSWORD) and BOT_DB_APP_USER/_PASSWORD must be set'
+    DO $$ BEGIN RAISE EXCEPTION 'bootstrap settings are missing'; END $$;
+\endif
+
+SELECT format('CREATE ROLE %I', :'owner_role')
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'owner_role') \gexec
+SELECT format(
+    'ALTER ROLE %I WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD %L',
+    :'owner_role', :'owner_password'
+) \gexec
+
+SELECT format('CREATE ROLE %I', :'app_role')
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'app_role') \gexec
+SELECT format(
+    'ALTER ROLE %I WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD %L',
+    :'app_role', :'app_password'
+) \gexec
+
+SELECT format('CREATE DATABASE %I OWNER %I', :'db_name', :'owner_role')
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'db_name') \gexec
+SELECT format('REVOKE ALL ON DATABASE %I FROM PUBLIC', :'db_name') \gexec
+SELECT format('REVOKE TEMPORARY ON DATABASE %I FROM %I', :'db_name', :'app_role') \gexec
+SELECT format('GRANT CONNECT ON DATABASE %I TO %I', :'db_name', :'app_role') \gexec
+
+\connect :"db_name"
+
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+SELECT format('ALTER SCHEMA public OWNER TO %I', :'owner_role') \gexec
+SELECT format('GRANT USAGE ON SCHEMA public TO %I', :'app_role') \gexec
+
+-- Tables created by future migrations (run as owner) become available to the app automatically.
+SELECT format(
+    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public '
+    'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO %I',
+    :'owner_role', :'app_role'
+) \gexec
+SELECT format(
+    'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public '
+    'GRANT USAGE, SELECT ON SEQUENCES TO %I',
+    :'owner_role', :'app_role'
+) \gexec
+
+-- Objects that already exist (re-running bootstrap after migrations).
+SELECT format(
+    'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO %I', :'app_role'
+) \gexec
+SELECT format('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO %I', :'app_role') \gexec

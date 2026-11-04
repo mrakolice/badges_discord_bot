@@ -1,0 +1,7 @@
+{# Deliveries go with their campaign via ON DELETE CASCADE. #}
+WITH deleted AS (
+    DELETE FROM campaigns_seen
+    WHERE last_seen_at < now() - make_interval(days => {{ days | bind }})
+    RETURNING 1
+)
+SELECT count(*) FROM deleted;

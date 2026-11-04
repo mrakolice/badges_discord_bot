@@ -2,8 +2,7 @@
 # infra stack (docker-compose.infra.yml); this stack joins its networks as external.
 #
 #   docker compose --profile bootstrap run --rm db-bootstrap   # once: roles + database
-#   docker compose up                                          # build + apply migrations
-#   docker compose --profile bot up -d                         # migrations, then the bot
+#   docker compose up -d --build                               # migrations, then the bot
 name: twitch-badge-bot
 
 x-logging: &default-logging
@@ -95,11 +94,9 @@ services:
   # ---------------------------------------------------------------------------
   # Bot: starts only after migrations succeeded. Connects as the DML-only role
   # and receives only the variables it needs (no superuser/owner secrets).
-  # In the `bot` profile until src/main.py exists.
   # ---------------------------------------------------------------------------
   bot:
     <<: *app
-    profiles: [bot]
     restart: unless-stopped
     mem_limit: 256m
     depends_on:
@@ -115,15 +112,25 @@ services:
       DROPS_API_KEY: ${DROPS_API_KEY:-}
       CHECK_INTERVAL_MINUTES: ${CHECK_INTERVAL_MINUTES:-5}
       STREAM_NOTIFY_COOLDOWN_HOURS: ${STREAM_NOTIFY_COOLDOWN_HOURS:-6}
+      STREAM_NOTIFY_TOP_N: ${STREAM_NOTIFY_TOP_N:-3}
+      ENDING_SOON_HOURS: ${ENDING_SOON_HOURS:-24}
+      CAMPAIGN_RETENTION_DAYS: ${CAMPAIGN_RETENTION_DAYS:-30}
+      BOT_HTTP_PORT: ${BOT_HTTP_PORT:-8080}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ['BOT_HTTP_PORT'] + '/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     networks:
       - backend
       - proxy
     labels:
-      # Router is prepared but disabled: the bot has no HTTP endpoint yet.
-      # Flip to true once /health (or a webhook) listens on BOT_HTTP_PORT.
-      - traefik.enable=false
+      # Only the health endpoint is published, nothing else of the bot.
+      - traefik.enable=true
       - traefik.docker.network=${PROXY_NETWORK:-proxy}
-      - traefik.http.routers.twitch-bot.rule=Host(`${BOTS_HOSTNAME:-localhost}`) && PathPrefix(`/twitch-bot`)
+      - traefik.http.routers.twitch-bot.rule=Host(`${BOTS_HOSTNAME:-localhost}`) && Path(`/twitch-bot/health`)
       - traefik.http.routers.twitch-bot.entrypoints=websecure
       - traefik.http.routers.twitch-bot.tls=true
       - traefik.http.routers.twitch-bot.tls.certresolver=myresolver

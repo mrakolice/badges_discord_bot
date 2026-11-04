@@ -1,0 +1,8 @@
+{# Atomic cooldown: a row comes back only if this caller may notify now. #}
+INSERT INTO stream_notifications (channel_id, game_id, streamer_login)
+VALUES ({{ channel_id | bind }}, {{ game_id | bind }}, {{ streamer_login | bind }})
+ON CONFLICT (channel_id, game_id, streamer_login) DO UPDATE
+    SET notified_at = now()
+    WHERE stream_notifications.notified_at
+          <= now() - make_interval(hours => {{ cooldown_hours | bind }})
+RETURNING id;

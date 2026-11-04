@@ -1,0 +1,2 @@
+UPDATE stream_notifications
+SET notified_at = notified_at - make_interval(hours => {{ hours | bind }});

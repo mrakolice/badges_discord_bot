@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 SubscriptionType = Literal["game", "reward"]
 CampaignType = Literal["drop", "reward"]
+DeliveryKind = Literal["new", "ending"]
 ALL_REWARDS = "ALL_REWARDS"
 
 
@@ -32,6 +33,5 @@ class CampaignSeen(_Record):
     campaign_id: str
     campaign_type: CampaignType
     first_seen_at: datetime
-    last_notified_at: datetime | None
-    ending_notified_at: datetime | None
+    last_seen_at: datetime
     data_json: dict[str, Any]

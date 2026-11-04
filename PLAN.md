@@ -1,8 +1,8 @@
 # Подробный план реализации (Discord + Postgres + asyncpg + Jinja SQL)
 
-> SQLAlchemy/Alembic исключены. Слой БД: `src/db/` + `sql/<домен>/*.sql.j2` + свой мигратор
-> (правила — в CLAUDE.md, раздел «Слой доступа к данным»). Разделы ниже про SQLAlchemy/Alembic
-> заменены этим слоем.
+> **План выполнен.** Актуальное поведение — в `SPEC.md`, статус задач — в `TODO.md`, правила
+> слоя данных и инварианты — в `CLAUDE.md`. SQLAlchemy/Alembic исключены: слой БД — `src/db/` +
+> `sql/<домен>/*.sql.j2` + свой мигратор.
 
 ## 0. Цель
 
@@ -33,50 +33,7 @@
 
 ## 2. Структура проекта
 
-```
-twitch_badge_bot/
-├── alembic/
-│   ├── env.py
-│   ├── script.py.mako
-│   └── versions/
-│       └── 001_initial.py
-├── docker/
-│   └── entrypoint.sh         # wait-for-postgres + alembic upgrade + run
-├── src/
-│   ├── __init__.py
-│   ├── main.py               # точка входа
-│   ├── config.py             # env + валидация
-│   ├── db.py                 # SQLAlchemy engine + async session helper
-│   ├── models.py             # SQLAlchemy Core tables
-│   ├── storage.py            # репозиторий
-│   ├── drops_api.py          # клиент Sunkwi API
-│   ├── twitch.py             # клиент Twitch Helix
-│   ├── checker.py            # логика polling
-│   ├── notifications.py      # Discord embed
-│   ├── bot.py                # discord.py Cog
-│   └── utils.py              # хелперы
-├── tests/
-│   ├── __init__.py
-│   ├── conftest.py
-│   ├── unit/
-│   │   ├── test_config.py
-│   │   ├── test_drops_api.py
-│   │   ├── test_twitch.py
-│   │   ├── test_storage.py
-│   │   └── test_checker.py
-│   ├── integration/
-│   │   ├── test_postgres.py
-│   │   └── test_checker_with_db.py
-│   └── e2e/
-│       └── test_smoke.py
-├── docker-compose.yml
-├── docker-compose.test.yml
-├── Dockerfile
-├── pyproject.toml
-├── requirements.txt
-├── .env.example
-└── README.md
-```
+См. CLAUDE.md, раздел «Структура проекта».
 
 ---
 
@@ -94,32 +51,10 @@ Postgres 18 и Traefik живут в инфра-стеке (`docker-compose.infr
 `Dockerfile`: multi-stage (uv → `python:3.14-slim`), пользователь uid 10001, код read-only.
 Контейнеры: `read_only`, `cap_drop: ALL`, `no-new-privileges`, лимиты логов/памяти/pids.
 
-## 4. Alembic + SQLAlchemy Core
+## 4. Слой данных
 
-### 4.1 `src/models.py`
-
-SQLAlchemy Core tables:
-- `channels`
-- `subscriptions`
-- `campaigns_seen`
-- `state`
-- `stream_notifications`
-
-### 4.2 `src/db.py`
-
-```python
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
-
-engine: AsyncEngine = create_async_engine(settings.database_url)
-```
-
-### 4.3 Alembic
-
-- `alembic init alembic`.
-- Настроить `alembic/env.py` на async-движок.
-- Первая миграция создаёт таблицы из `src/models.py`.
-
----
+См. CLAUDE.md «Слой доступа к данным». Миграции — `sql/migrations/NNNN_*.sql.j2`, применяет
+сервис `migrate` при каждом `docker compose up`.
 
 ## 5. Модули
 
@@ -186,7 +121,7 @@ Discord embed:
 ### 5.8 `src/main.py`
 
 - Инициализация engine.
-- `alembic upgrade head` при старте (или через entrypoint).
+- Миграции применяет сервис `migrate` до старта бота.
 - Создание Discord Bot.
 - `APScheduler` с `checker.run()`.
 - Graceful shutdown.
@@ -209,7 +144,7 @@ Discord embed:
 
 | Тест | Что проверяет |
 |---|---|
-| `test_postgres.py` | Alembic миграции, подключение |
+| `test_migrations.py` | Миграции применяются, повтор — no-op, checksum |
 | `test_checker_with_db.py` | Checker с реальной БД и замоканными API |
 
 ### 6.3 E2E / smoke
@@ -235,8 +170,8 @@ Discord embed:
 |---|---|
 | 1 | Удалить старый код, обновить `requirements.txt`, `Dockerfile`, `pyproject.toml` |
 | 2 | Создать `docker-compose.yml` и `docker-compose.test.yml` |
-| 3 | Инициализировать Alembic, написать `src/models.py`, первую миграцию |
-| 4 | Написать `src/db.py`, `src/config.py` |
+| 3 | Слой данных (asyncpg + Jinja SQL), миграции `0001`/`0002` |
+| 4 | Написать `src/config.py` |
 | 5 | Написать `src/drops_api.py` + pydantic-модели |
 | 6 | Написать `src/twitch.py` |
 | 7 | Написать `src/storage.py` |
@@ -254,21 +189,4 @@ Discord embed:
 
 ## 8. Команды для локальной работы
 
-```bash
-# Копировать env
-cp .env.example .env
-# отредактировать
-
-# Поднять Postgres + bot
-docker compose up --build
-
-# Применить миграции вручную (если не через entrypoint)
-docker compose exec bot alembic upgrade head
-
-# Запуск тестов
-docker compose -f docker-compose.test.yml up -d
-pytest
-
-# Создать новую миграцию после изменения models.py
-alembic revision --autogenerate -m "add something"
-```
+См. раздел «Запуск и тесты» в CLAUDE.md и README.md.

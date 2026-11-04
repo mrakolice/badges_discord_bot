@@ -1,0 +1,40 @@
+{#
+  - Per-channel delivery log replaces global notification flags on campaigns_seen:
+    late subscribers still get "ending soon", failed sends can be retried, /follow doesn't
+    cause a duplicate on the next check.
+  - Stream alerts: one row per (channel, game, streamer) with a configurable cooldown
+    instead of a per-UTC-day unique index.
+  - last_seen_at lets the checker prune campaigns that left the API.
+#}
+ALTER TABLE campaigns_seen
+    ADD COLUMN last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    DROP COLUMN last_notified_at,
+    DROP COLUMN ending_notified_at;
+
+CREATE INDEX campaigns_seen_last_seen_idx ON campaigns_seen (last_seen_at);
+
+CREATE TABLE campaign_deliveries (
+    channel_id    BIGINT      NOT NULL REFERENCES channels (id) ON DELETE CASCADE,
+    campaign_id   TEXT        NOT NULL,
+    campaign_type TEXT        NOT NULL,
+    kind          TEXT        NOT NULL CHECK (kind IN ('new', 'ending')),
+    delivered_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (channel_id, campaign_id, campaign_type, kind),
+    FOREIGN KEY (campaign_id, campaign_type)
+        REFERENCES campaigns_seen (campaign_id, campaign_type) ON DELETE CASCADE
+);
+
+CREATE INDEX campaign_deliveries_campaign_idx ON campaign_deliveries (campaign_id, campaign_type);
+
+DROP INDEX stream_notifications_daily_uq;
+
+{# Keep only the latest notification per target before adding the unique constraint. #}
+DELETE FROM stream_notifications AS older
+USING stream_notifications AS newer
+WHERE older.channel_id = newer.channel_id
+  AND older.game_id = newer.game_id
+  AND older.streamer_login = newer.streamer_login
+  AND (older.notified_at, older.id) < (newer.notified_at, newer.id);
+
+ALTER TABLE stream_notifications
+    ADD CONSTRAINT stream_notifications_target_uq UNIQUE (channel_id, game_id, streamer_login);

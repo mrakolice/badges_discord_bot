@@ -6,12 +6,17 @@ Discord-бот, который живёт в Docker-контейнере и ув
 
 ## Текущий статус
 
-Проект находится в фазе планирования. Реализованы:
-- `SPEC.md` — спецификация.
-- `PLAN.md` — пошаговый план с тестами.
-- `TODO.md` — чек-лист задач.
+Бот реализован по `SPEC.md`; не сделан только ручной тест на Discord-сервере (`TODO.md` §8).
 
-- Слой доступа к данным (`src/db/`, `src/storage.py`, `sql/`) и стартовая миграция.
+Ключевые инварианты (не ломать):
+- **Лимит Sunkwi** соблюдает `DropsApiClient`: время следующего запроса и снимок хранятся в
+  `state`, слот бронируется *до* запроса (429 тоже засчитывается). Команды бота читают снимок,
+  а не API.
+- **Доставка ровно один раз**: `claim_*` (вставка с `ON CONFLICT`) до отправки, `release_*` при
+  ошибке. Не заменять на «проверить, потом записать».
+- Live-стримы — только те, что дают дропы (`allow.channels` или топ-N по игре).
+- Интервал планировщика = минимальный интервал + 2×`SAFETY_MARGIN` (`src/main.py`), иначе
+  каждая вторая проверка упирается в лимит.
 
 ## Слой доступа к данным (правила)
 
@@ -76,19 +81,20 @@ twitch_badge_bot/
 │   ├── twitch.py               # клиент Twitch Helix
 │   ├── checker.py              # логика polling
 │   ├── notifications.py        # Discord embed
-│   ├── bot.py                  # discord.py Cog
-│   └── utils.py                # хелперы
+│   ├── bot.py                  # discord.py Bot + Cog + DiscordNotifier
+│   └── health.py               # GET /health (aiohttp)
 ├── tests/
+│   ├── fakes.py                # фейки Sunkwi/Twitch/Discord для тестов
+│   ├── fixtures/               # урезанные реальные ответы Sunkwi
+│   ├── sql/                    # SQL только для тестов
 │   ├── unit/
-│   ├── integration/
-│   └── e2e/
+│   └── integration/
 ├── docker-compose.yml          # стек бота: db-bootstrap, migrate, bot
 ├── docker-compose.infra.yml    # инфра-стек: Traefik, общий Postgres 18, WUD и др.
 ├── docker-compose.test.yml
 ├── .dockerignore
 ├── Dockerfile
-├── pyproject.toml
-├── requirements.txt
+├── pyproject.toml / uv.lock
 ├── .env.example
 ├── SPEC.md
 ├── PLAN.md
@@ -118,11 +124,8 @@ docker compose -f docker-compose.infra.yml up -d
 # Один раз: БД + роли (owner — миграции/DDL, app — только DML для бота)
 docker compose --profile bootstrap run --rm db-bootstrap
 
-# Сборка + автоматические миграции (применяется только недостающее)
-docker compose up --build
-
-# Миграции, затем бот (profile `bot` — пока нет src/main.py)
-docker compose --profile bot up -d --build
+# Сборка, автоматические миграции (только недостающие), затем бот
+docker compose up -d --build
 
 # Unit-тесты
 uv run pytest tests/unit

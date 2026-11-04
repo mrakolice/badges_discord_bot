@@ -1,0 +1,6 @@
+{# Atomic "send once": returns a row only to the caller that recorded the delivery. #}
+INSERT INTO campaign_deliveries (channel_id, campaign_id, campaign_type, kind)
+VALUES ({{ channel_id | bind }}, {{ campaign_id | bind }}, {{ campaign_type | bind }},
+        {{ kind | bind }})
+ON CONFLICT DO NOTHING
+RETURNING delivered_at;

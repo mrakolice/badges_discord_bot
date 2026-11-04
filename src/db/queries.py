@@ -8,6 +8,8 @@ class Query(StrEnum):
 class ChannelRegistry(Query):
     UPSERT = "channel_registry/upsert"
     GET = "channel_registry/get"
+    DELETE = "channel_registry/delete"
+    DELETE_GUILD = "channel_registry/delete_guild"
 
 
 class Follows(Query):
@@ -21,12 +23,17 @@ class Follows(Query):
 class CampaignTracking(Query):
     UPSERT_SEEN = "campaign_tracking/upsert_seen"
     GET = "campaign_tracking/get"
-    MARK_NOTIFIED = "campaign_tracking/mark_notified"
+    PRUNE_UNSEEN = "campaign_tracking/prune_unseen"
+
+
+class Announcements(Query):
+    CLAIM = "announcements/claim"
+    RELEASE = "announcements/release"
 
 
 class LiveAlerts(Query):
-    WAS_NOTIFIED_SINCE = "live_alerts/was_notified_since"
-    RECORD = "live_alerts/record"
+    CLAIM = "live_alerts/claim"
+    RELEASE = "live_alerts/release"
 
 
 class BotState(Query):
@@ -45,6 +52,7 @@ ALL_QUERY_GROUPS: tuple[type[Query], ...] = (
     ChannelRegistry,
     Follows,
     CampaignTracking,
+    Announcements,
     LiveAlerts,
     BotState,
     SchemaVersioning,

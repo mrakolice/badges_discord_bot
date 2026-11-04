@@ -56,7 +56,8 @@ class QueryExecutor(ABC):
 
 class Database(QueryExecutor):
     @abstractmethod
-    async def connect(self) -> None: ...
+    async def connect(self, *, wait_seconds: float = 0) -> None:
+        """Opens the connection(s), retrying transient failures for up to `wait_seconds`."""
 
     @abstractmethod
     async def close(self) -> None: ...

@@ -2,6 +2,7 @@
 INSERT INTO campaigns_seen (campaign_id, campaign_type, data_json)
 VALUES ({{ campaign_id | bind }}, {{ campaign_type | bind }}, {{ data | bind }})
 ON CONFLICT (campaign_id, campaign_type) DO UPDATE
-    SET data_json = EXCLUDED.data_json
-RETURNING campaign_id, campaign_type, first_seen_at, last_notified_at, ending_notified_at,
-          data_json, (xmax = 0) AS inserted;
+    SET data_json = EXCLUDED.data_json,
+        last_seen_at = now()
+RETURNING campaign_id, campaign_type, first_seen_at, last_seen_at, data_json,
+          (xmax = 0) AS inserted;

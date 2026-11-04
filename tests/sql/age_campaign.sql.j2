@@ -1,0 +1,3 @@
+UPDATE campaigns_seen
+SET last_seen_at = now() - make_interval(days => {{ days | bind }})
+WHERE campaign_id = {{ campaign_id | bind }};

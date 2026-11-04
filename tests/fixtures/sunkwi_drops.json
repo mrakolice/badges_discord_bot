@@ -1,0 +1,145 @@
+{
+ "lastUpdatedAt": "2026-11-04T18:52:01.395Z",
+ "refreshIntervalSeconds": 60,
+ "data": [
+  {
+   "endAt": "2026-11-04T22:59:59.999Z",
+   "gameBoxArtURL": "https://static-cdn.jtvnw.net/ttv-boxart/618479630_IGDB-120x160.jpg",
+   "gameDisplayName": "The Other Side",
+   "gameId": "618479630",
+   "rewards": [
+    {
+     "accountLinkURL": "https://store.steampowered.com/news/app/2764750/view/676261964507253213",
+     "allow": {
+      "isEnabled": false
+     },
+     "description": "Celebrate Halloween 2026 in The Other Side! Watch participating Twitch streams during the event to earn an exclusive Halloween feline companion. Don't miss your chance to claim this limited-time reward!",
+     "detailsURL": "https://store.steampowered.com/news/app/2764750/view/676261964507253213",
+     "endAt": "2026-11-04T22:59:59.999Z",
+     "eventBasedDrops": [],
+     "game": {
+      "displayName": "The Other Side",
+      "id": "618479630",
+      "slug": "the-other-side-1"
+     },
+     "id": "cd0181a3-ac58-400c-9f2b-9d04df752ee0",
+     "imageURL": "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/666a2c52-0209-4528-b850-00faea24714a.png",
+     "name": "Halloween 2026",
+     "owner": {
+      "id": "00f3356f-7b50-497e-a3f0-4b43d5540c7b",
+      "name": "Ecliptic Studios"
+     },
+     "startAt": "2026-10-31T17:00:00Z",
+     "status": "ACTIVE",
+     "timeBasedDrops": [
+      {
+       "benefitEdges": [
+        {
+         "benefit": {
+          "createdAt": "2026-10-31T15:46:04.439Z",
+          "distributionType": "DIRECT_ENTITLEMENT",
+          "entitlementLimit": 1,
+          "game": {
+           "id": "618479630",
+           "name": "The Other Side"
+          },
+          "id": "2e2c14ce-d542-11f1-8f8b-0a58a9feac02",
+          "imageAssetURL": "https://static-cdn.jtvnw.net/twitch-quests-assets/REWARD/ede4fd41-72df-4f9d-8b86-5bc113458c7f.png",
+          "isIosAvailable": false,
+          "name": "Hex Cat (HQ Pet)",
+          "ownerOrganization": {
+           "id": "00f3356f-7b50-497e-a3f0-4b43d5540c7b",
+           "name": "Ecliptic Studios"
+          }
+         },
+         "entitlementLimit": 1
+        }
+       ],
+       "endAt": "2026-11-04T22:59:59.999Z",
+       "id": "ca55b5f7-d541-11f1-ad10-0a58a9feac02",
+       "name": "Hex Cat",
+       "preconditionDrops": null,
+       "requiredMinutesWatched": 120,
+       "requiredSubs": 0,
+       "startAt": "2026-10-31T17:00:00Z"
+      }
+     ]
+    }
+   ],
+   "startAt": "2026-10-31T17:00:00.000Z"
+  },
+  {
+   "endAt": "2026-11-05T02:59:59.999Z",
+   "gameBoxArtURL": "https://static-cdn.jtvnw.net/ttv-boxart/32502_IGDB-120x160.jpg",
+   "gameDisplayName": "World of Warships",
+   "gameId": "32502",
+   "rewards": [
+    {
+     "accountLinkURL": "https://wargaming.net/personal/",
+     "allow": {
+      "channels": [
+       {
+        "displayName": "WorldofWarships",
+        "id": "182565961",
+        "name": "worldofwarships"
+       }
+      ],
+      "isEnabled": true
+     },
+     "description": "Oxford University is older than the Aztec Empire.  Teaching was going on at Oxford by 1096, and it grew quickly after 1167, when Henry II banned English students from attending the University of Paris. The Aztecs founded their capital, Tenochtitlan, in 1325, more than two centuries later.",
+     "detailsURL": "https://worldofwarships.com/en/news/community/community-drops-october-26/",
+     "endAt": "2026-11-04T22:59:59.999Z",
+     "eventBasedDrops": [],
+     "game": {
+      "displayName": "World of Warships",
+      "id": "32502",
+      "slug": "world-of-warships"
+     },
+     "id": "c3c97476-d77d-42d9-b550-d0cce948b18a",
+     "imageURL": "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/59549dc0-11d8-41ef-b01c-95cbecaded5d.png",
+     "name": "15.9 WOWS Channel Drop",
+     "owner": {
+      "id": "6948a129-2c6d-4d88-9444-6b96918a19f8",
+      "name": "Wargaming"
+     },
+     "startAt": "2026-10-28T22:00:00Z",
+     "status": "ACTIVE",
+     "timeBasedDrops": [
+      {
+       "benefitEdges": [
+        {
+         "benefit": {
+          "createdAt": "2026-10-07T08:54:57.3Z",
+          "distributionType": "DIRECT_ENTITLEMENT",
+          "entitlementLimit": 1,
+          "game": {
+           "id": "32502",
+           "name": "World of Warships"
+          },
+          "id": "6948a129-2c6d-4d88-9444-6b96918a19f8_CUSTOM_ID_WOWS_TwitchDrops_1509_250ct",
+          "imageAssetURL": "https://static-cdn.jtvnw.net/twitch-quests-assets/REWARD/4691968d-7347-43b7-97b0-3b0f1a48184f.png",
+          "isIosAvailable": false,
+          "name": "Update 15.9: 250CT",
+          "ownerOrganization": {
+           "id": "6948a129-2c6d-4d88-9444-6b96918a19f8",
+           "name": "Wargaming"
+          }
+         },
+         "entitlementLimit": 1
+        }
+       ],
+       "endAt": "2026-11-04T22:59:59.999Z",
+       "id": "8967d28f-bd90-11f1-b46d-0a58a9feac02",
+       "name": "Week 4: 250 Community Tokens",
+       "preconditionDrops": null,
+       "requiredMinutesWatched": 60,
+       "requiredSubs": 0,
+       "startAt": "2026-10-28T22:00:00Z"
+      }
+     ]
+    }
+   ],
+   "startAt": "2026-10-28T22:00:00.000Z"
+  }
+ ]
+}

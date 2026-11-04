@@ -12,6 +12,7 @@ EXPECTED_TABLES = {
     "public.campaigns_seen",
     "public.state",
     "public.stream_notifications",
+    "public.campaign_deliveries",
     "migrations_meta.schema_migrations",
 }
 

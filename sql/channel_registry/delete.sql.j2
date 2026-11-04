@@ -1,0 +1,4 @@
+{# Subscriptions, deliveries and stream alerts go away via ON DELETE CASCADE. #}
+DELETE FROM channels
+WHERE id = {{ channel_id | bind }}
+RETURNING id;

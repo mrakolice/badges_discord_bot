@@ -1,0 +1,6 @@
+{# Undo a claim whose message could not be sent, so the next check retries it. #}
+DELETE FROM campaign_deliveries
+WHERE channel_id = {{ channel_id | bind }}
+  AND campaign_id = {{ campaign_id | bind }}
+  AND campaign_type = {{ campaign_type | bind }}
+  AND kind = {{ kind | bind }};

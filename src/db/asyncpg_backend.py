@@ -1,4 +1,7 @@
+import asyncio
 import json
+import logging
+import time
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
@@ -8,7 +11,12 @@ import asyncpg
 from src.db.base import Database, QueryExecutor, Row
 from src.db.templates import SqlTemplates
 
+log = logging.getLogger(__name__)
+
 type _Conn = asyncpg.Connection | asyncpg.Pool
+
+# Postgres may still be starting (or live in another compose stack): worth retrying.
+_TRANSIENT_ERRORS = (OSError, asyncpg.CannotConnectNowError, asyncpg.TooManyConnectionsError)
 
 
 def normalize_dsn(dsn: str) -> str:
@@ -55,11 +63,23 @@ class AsyncpgDatabase(Database):
         self._max_size = max_size
         self._pool: asyncpg.Pool | None = None
 
-    async def connect(self) -> None:
-        if self._pool is None:
-            self._pool = await asyncpg.create_pool(
-                self._dsn, min_size=self._min_size, max_size=self._max_size, init=_init_connection
-            )
+    async def connect(self, *, wait_seconds: float = 0) -> None:
+        deadline = time.monotonic() + wait_seconds
+        delay = 1.0
+        while self._pool is None:
+            try:
+                self._pool = await asyncpg.create_pool(
+                    self._dsn,
+                    min_size=self._min_size,
+                    max_size=self._max_size,
+                    init=_init_connection,
+                )
+            except _TRANSIENT_ERRORS as exc:
+                if time.monotonic() + delay > deadline:
+                    raise
+                log.warning("database is not reachable yet (%s), retrying in %.0fs", exc, delay)
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, 10.0)
 
     async def close(self) -> None:
         if self._pool is not None:

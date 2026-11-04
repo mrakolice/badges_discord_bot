@@ -1,17 +1,23 @@
-from datetime import UTC, datetime, time
-from typing import Any, Literal
+from typing import Any
 
-from src.db.base import QueryExecutor
-from src.db.queries import BotState, CampaignTracking, ChannelRegistry, Follows, LiveAlerts
+from src.db.base import QueryExecutor, Row
+from src.db.queries import (
+    Announcements,
+    BotState,
+    CampaignTracking,
+    ChannelRegistry,
+    Follows,
+    LiveAlerts,
+    Query,
+)
 from src.db.records import (
     CampaignSeen,
     CampaignType,
     Channel,
+    DeliveryKind,
     Subscription,
     SubscriptionType,
 )
-
-NotifiedColumn = Literal["last_notified_at", "ending_notified_at"]
 
 
 class Storage:
@@ -26,12 +32,18 @@ class Storage:
         row = await self._db.fetchrow(
             ChannelRegistry.UPSERT, channel_id=channel_id, guild_id=guild_id, name=name
         )
-        assert row is not None
-        return Channel.model_validate(row)
+        return Channel.model_validate(_required(row, ChannelRegistry.UPSERT))
 
     async def get_channel(self, channel_id: int) -> Channel | None:
         row = await self._db.fetchrow(ChannelRegistry.GET, channel_id=channel_id)
         return Channel.model_validate(row) if row else None
+
+    async def delete_channel(self, channel_id: int) -> bool:
+        """Drops the channel with all its subscriptions and delivery history."""
+        return await self._db.fetchval(ChannelRegistry.DELETE, channel_id=channel_id) is not None
+
+    async def delete_guild_channels(self, guild_id: int) -> int:
+        return len(await self._db.fetch(ChannelRegistry.DELETE_GUILD, guild_id=guild_id))
 
     # follows
 
@@ -87,14 +99,16 @@ class Storage:
     async def upsert_campaign(
         self, campaign_id: str, campaign_type: CampaignType, data: dict[str, Any]
     ) -> tuple[CampaignSeen, bool]:
-        """Returns the stored campaign and whether it was seen for the first time."""
-        row = await self._db.fetchrow(
+        """Stores the latest payload; the flag is True when the campaign is seen first time."""
+        row = _required(
+            await self._db.fetchrow(
+                CampaignTracking.UPSERT_SEEN,
+                campaign_id=campaign_id,
+                campaign_type=campaign_type,
+                data=data,
+            ),
             CampaignTracking.UPSERT_SEEN,
-            campaign_id=campaign_id,
-            campaign_type=campaign_type,
-            data=data,
         )
-        assert row is not None
         return CampaignSeen.model_validate(row), bool(row["inserted"])
 
     async def get_campaign(
@@ -105,19 +119,58 @@ class Storage:
         )
         return CampaignSeen.model_validate(row) if row else None
 
-    async def mark_campaign_notified(
-        self,
-        campaign_id: str,
-        campaign_type: CampaignType,
-        column: NotifiedColumn = "last_notified_at",
-    ) -> None:
-        if column not in ("last_notified_at", "ending_notified_at"):
-            raise ValueError(f"unexpected column {column!r}")
-        await self._db.execute(
-            CampaignTracking.MARK_NOTIFIED,
-            column=column,
+    async def prune_campaigns(self, unseen_for_days: int) -> int:
+        return int(await self._db.fetchval(CampaignTracking.PRUNE_UNSEEN, days=unseen_for_days))
+
+    # announcements
+
+    async def claim_delivery(
+        self, channel_id: int, campaign_id: str, campaign_type: CampaignType, kind: DeliveryKind
+    ) -> bool:
+        """True only for the first caller; the campaign must be upserted beforehand."""
+        claimed = await self._db.fetchval(
+            Announcements.CLAIM,
+            channel_id=channel_id,
             campaign_id=campaign_id,
             campaign_type=campaign_type,
+            kind=kind,
+        )
+        return claimed is not None
+
+    async def release_delivery(
+        self, channel_id: int, campaign_id: str, campaign_type: CampaignType, kind: DeliveryKind
+    ) -> None:
+        await self._db.execute(
+            Announcements.RELEASE,
+            channel_id=channel_id,
+            campaign_id=campaign_id,
+            campaign_type=campaign_type,
+            kind=kind,
+        )
+
+    # live_alerts
+
+    async def claim_stream_notification(
+        self, channel_id: int, game_id: str, streamer_login: str, cooldown_hours: int
+    ) -> bool:
+        """True if the cooldown for this channel/game/streamer has passed (and restarts it)."""
+        claimed = await self._db.fetchval(
+            LiveAlerts.CLAIM,
+            channel_id=channel_id,
+            game_id=game_id,
+            streamer_login=streamer_login,
+            cooldown_hours=cooldown_hours,
+        )
+        return claimed is not None
+
+    async def release_stream_notification(
+        self, channel_id: int, game_id: str, streamer_login: str
+    ) -> None:
+        await self._db.execute(
+            LiveAlerts.RELEASE,
+            channel_id=channel_id,
+            game_id=game_id,
+            streamer_login=streamer_login,
         )
 
     # bot_state
@@ -128,37 +181,8 @@ class Storage:
     async def set_state(self, key: str, value: Any) -> None:
         await self._db.execute(BotState.SET, key=key, value=value)
 
-    # live_alerts
 
-    async def was_stream_notified_since(
-        self, channel_id: int, game_id: str, streamer_login: str, since: datetime
-    ) -> bool:
-        return bool(
-            await self._db.fetchval(
-                LiveAlerts.WAS_NOTIFIED_SINCE,
-                channel_id=channel_id,
-                game_id=game_id,
-                streamer_login=streamer_login,
-                since=since,
-            )
-        )
-
-    async def was_stream_notified_today(
-        self, channel_id: int, game_id: str, streamer_login: str
-    ) -> bool:
-        midnight_utc = datetime.combine(datetime.now(UTC).date(), time(), tzinfo=UTC)
-        return await self.was_stream_notified_since(
-            channel_id, game_id, streamer_login, midnight_utc
-        )
-
-    async def mark_stream_notified(
-        self, channel_id: int, game_id: str, streamer_login: str
-    ) -> bool:
-        """Returns False if this stream was already recorded for the current UTC day."""
-        inserted = await self._db.fetchval(
-            LiveAlerts.RECORD,
-            channel_id=channel_id,
-            game_id=game_id,
-            streamer_login=streamer_login,
-        )
-        return inserted is not None
+def _required(row: Row | None, query: Query) -> Row:
+    if row is None:
+        raise RuntimeError(f"{query} returned no row")
+    return row

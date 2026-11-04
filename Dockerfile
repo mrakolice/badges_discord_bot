@@ -37,4 +37,6 @@ ENV PATH="/app/.venv/bin:${PATH}" \
 
 USER bot:bot
 
+EXPOSE 8080
+
 CMD ["python", "-m", "src.main"]

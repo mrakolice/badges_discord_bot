@@ -9,3 +9,5 @@ class TestSql(Query):
     RESET_SCHEMA = "reset_schema"
     TRUNCATE_ALL = "truncate_all"
     LIST_TABLES = "list_tables"
+    AGE_CAMPAIGN = "age_campaign"
+    AGE_STREAM_NOTIFICATIONS = "age_stream_notifications"

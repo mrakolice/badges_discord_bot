@@ -5,15 +5,20 @@ description = "Discord bot that notifies channels about Twitch Drops and reward 
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "apscheduler>=3.11,<4",
     "asyncpg>=0.31",
+    "discord-py>=2.7",
+    "httpx>=0.28",
     "jinja2>=3.1",
     "pydantic>=2.10",
+    "pydantic-settings>=2.16",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.25",
+    "respx>=0.23",
     "ruff>=0.8",
 ]
 
@@ -31,3 +36,7 @@ asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
 pythonpath = ["."]
 markers = ["integration: requires a running PostgreSQL (TEST_DATABASE_URL)"]
+filterwarnings = [
+    # discord.py 2.7 still calls asyncio.iscoroutinefunction on Python 3.14.
+    "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning:discord",
+]
