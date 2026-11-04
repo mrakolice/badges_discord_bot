@@ -1,0 +1,3 @@
+SELECT id, guild_id, name, created_at
+FROM channels
+WHERE id = {{ channel_id | bind }};

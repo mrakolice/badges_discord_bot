@@ -1,0 +1,4 @@
+SELECT campaign_id, campaign_type, first_seen_at, last_notified_at, ending_notified_at, data_json
+FROM campaigns_seen
+WHERE campaign_id = {{ campaign_id | bind }}
+  AND campaign_type = {{ campaign_type | bind }};

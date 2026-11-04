@@ -1,0 +1,8 @@
+SELECT EXISTS (
+    SELECT 1
+    FROM stream_notifications
+    WHERE channel_id = {{ channel_id | bind }}
+      AND game_id = {{ game_id | bind }}
+      AND streamer_login = {{ streamer_login | bind }}
+      AND notified_at >= {{ since | bind }}
+);

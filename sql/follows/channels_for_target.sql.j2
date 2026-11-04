@@ -1,0 +1,5 @@
+SELECT DISTINCT channel_id
+FROM subscriptions
+WHERE type = {{ type | bind }}
+  AND target_id = {{ target_id | bind }}
+ORDER BY channel_id;

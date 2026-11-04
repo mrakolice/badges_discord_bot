@@ -1,0 +1,5 @@
+{# `column` is last_notified_at or ending_notified_at (whitelisted in Storage). #}
+UPDATE campaigns_seen
+SET {{ column | ident }} = now()
+WHERE campaign_id = {{ campaign_id | bind }}
+  AND campaign_type = {{ campaign_type | bind }};

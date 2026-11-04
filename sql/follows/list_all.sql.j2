@@ -1,0 +1,6 @@
+SELECT id, channel_id, type, target_id, target_name, created_at
+FROM subscriptions
+{% if type is not none %}
+WHERE type = {{ type | bind }}
+{% endif %}
+ORDER BY id;

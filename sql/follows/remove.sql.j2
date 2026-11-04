@@ -1,0 +1,10 @@
+{# Remove either by subscription id or by (type, target_id). #}
+DELETE FROM subscriptions
+WHERE channel_id = {{ channel_id | bind }}
+{% if subscription_id is not none %}
+  AND id = {{ subscription_id | bind }}
+{% else %}
+  AND type = {{ type | bind }}
+  AND target_id = {{ target_id | bind }}
+{% endif %}
+RETURNING id;

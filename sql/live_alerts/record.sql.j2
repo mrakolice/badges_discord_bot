@@ -1,0 +1,5 @@
+{# Conflicts on the per-UTC-day unique index: returns no row if already notified today. #}
+INSERT INTO stream_notifications (channel_id, game_id, streamer_login)
+VALUES ({{ channel_id | bind }}, {{ game_id | bind }}, {{ streamer_login | bind }})
+ON CONFLICT DO NOTHING
+RETURNING id;

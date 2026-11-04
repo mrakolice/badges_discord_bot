@@ -1,0 +1,4 @@
+INSERT INTO subscriptions (channel_id, type, target_id, target_name)
+VALUES ({{ channel_id | bind }}, {{ type | bind }}, {{ target_id | bind }}, {{ target_name | bind }})
+ON CONFLICT (channel_id, type, target_id) DO NOTHING
+RETURNING id, channel_id, type, target_id, target_name, created_at;

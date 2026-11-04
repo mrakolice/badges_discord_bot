@@ -1,0 +1,6 @@
+INSERT INTO channels (id, guild_id, name)
+VALUES ({{ channel_id | bind }}, {{ guild_id | bind }}, {{ name | bind }})
+ON CONFLICT (id) DO UPDATE
+    SET guild_id = EXCLUDED.guild_id,
+        name = EXCLUDED.name
+RETURNING id, guild_id, name, created_at;

@@ -1,0 +1,4 @@
+INSERT INTO state (key, value)
+VALUES ({{ key | bind }}, {{ value | bind }})
+ON CONFLICT (key) DO UPDATE
+    SET value = EXCLUDED.value;

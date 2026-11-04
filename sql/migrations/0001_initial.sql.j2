@@ -1,0 +1,47 @@
+{# Initial schema, see SPEC.md §6. Never edit after release: add a new migration instead. #}
+CREATE TABLE channels (
+    id          BIGINT      PRIMARY KEY,
+    guild_id    BIGINT      NOT NULL,
+    name        TEXT        NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE subscriptions (
+    id          SERIAL      PRIMARY KEY,
+    channel_id  BIGINT      NOT NULL REFERENCES channels (id) ON DELETE CASCADE,
+    type        TEXT        NOT NULL CHECK (type IN ('game', 'reward')),
+    target_id   TEXT        NOT NULL,
+    target_name TEXT        NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (channel_id, type, target_id)
+);
+
+CREATE INDEX subscriptions_target_idx ON subscriptions (type, target_id);
+
+CREATE TABLE campaigns_seen (
+    campaign_id        TEXT        NOT NULL,
+    campaign_type      TEXT        NOT NULL CHECK (campaign_type IN ('drop', 'reward')),
+    first_seen_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_notified_at   TIMESTAMPTZ,
+    ending_notified_at TIMESTAMPTZ,
+    data_json          JSONB       NOT NULL,
+    PRIMARY KEY (campaign_id, campaign_type)
+);
+
+CREATE TABLE state (
+    key   TEXT  PRIMARY KEY,
+    value JSONB NOT NULL
+);
+
+CREATE TABLE stream_notifications (
+    id             SERIAL      PRIMARY KEY,
+    channel_id     BIGINT      NOT NULL REFERENCES channels (id) ON DELETE CASCADE,
+    game_id        TEXT        NOT NULL,
+    streamer_login TEXT        NOT NULL,
+    notified_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+{# AT TIME ZONE makes the expression IMMUTABLE; a bare timestamptz::date is not indexable. #}
+CREATE UNIQUE INDEX stream_notifications_daily_uq ON stream_notifications (
+    channel_id, game_id, streamer_login, ((notified_at AT TIME ZONE 'UTC')::date)
+);
