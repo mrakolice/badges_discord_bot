@@ -21,7 +21,7 @@
 | Discord-бот | `discord.py 2.x` |
 | HTTP | `httpx` |
 | API-модели | `pydantic` |
-| БД | PostgreSQL 16 |
+| БД | PostgreSQL 18 |
 | Драйвер БД | `asyncpg` |
 | SQL-уровень | `jinja2`-шаблоны в `sql/`, ABC `Database` + `AsyncpgDatabase` |
 | Миграции | свой `MigrationRunner` (`python -m src.migrate`) |
@@ -82,67 +82,17 @@ twitch_badge_bot/
 
 ## 3. Инфраструктура
 
-### 3.1 `docker-compose.yml`
+Postgres 18 и Traefik живут в инфра-стеке (`docker-compose.infra.yml`); стек бота
+(`docker-compose.yml`) подключается к его сетям `backend` и `proxy` как к внешним.
 
-```yaml
-services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: bot
-      POSTGRES_PASSWORD: bot
-      POSTGRES_DB: twitch_badge_bot
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - botnet
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bot -d twitch_badge_bot"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+| Сервис | Что делает |
+|---|---|
+| `db-bootstrap` (profile `bootstrap`) | Разово: БД, роли `owner` (DDL) и `app` (DML), default privileges |
+| `migrate` | При каждом `up`: ждёт Postgres, применяет недостающие миграции, выходит |
+| `bot` (profile `bot`) | Стартует после `migrate` (`service_completed_successfully`) |
 
-  bot:
-    build: .
-    env_file: .env
-    environment:
-      DATABASE_URL: postgresql+asyncpg://bot:bot@postgres:5432/twitch_badge_bot
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - botnet
-    restart: unless-stopped
-
-networks:
-  botnet:
-
-volumes:
-  pgdata:
-```
-
-### 3.2 `Dockerfile`
-
-```dockerfile
-FROM python:3.14-slim
-
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-CMD ["python", "-m", "src.main"]
-```
-
-### 3.3 `docker/entrypoint.sh` (опционально)
-
-Ждёт Postgres, запускает `alembic upgrade head`, стартует бота.
-
----
+`Dockerfile`: multi-stage (uv → `python:3.14-slim`), пользователь uid 10001, код read-only.
+Контейнеры: `read_only`, `cap_drop: ALL`, `no-new-privileges`, лимиты логов/памяти/pids.
 
 ## 4. Alembic + SQLAlchemy Core
 

@@ -1,0 +1,330 @@
+x-logging: &default-logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-no-new-privileges: &no-new-privileges
+  security_opt:
+    - no-new-privileges:true
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  proxy:
+    name: proxy
+  backend:
+    name: backend
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  pg_data:
+  vikunja_files:
+  letsencrypt:
+  caldav_sync_data:
+  n8n_data:
+
+# =============================================================================
+# Services
+# =============================================================================
+services:
+
+  # ---------------------------------------------------------------------------
+  # Traefik v3.6 — reverse proxy
+  # ---------------------------------------------------------------------------
+  traefik:
+    image: traefik:v3.6.9
+    restart: unless-stopped
+    <<: [*default-logging, *no-new-privileges]
+    command:
+      - --log.level=INFO
+      - --api.dashboard=true
+      - --api.insecure=false
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=proxy
+      # Entrypoints
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      # HTTP → HTTPS redirect
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      # Let's Encrypt
+      - --certificatesresolvers.myresolver.acme.httpchallenge=true
+      - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    labels:
+      - traefik.enable=true
+      # Dashboard
+      - traefik.http.routers.dashboard.rule=Host(`${BOTS_HOSTNAME}`) && PathPrefix(`/dashboard`)
+      - traefik.http.routers.dashboard.entrypoints=websecure
+      - traefik.http.routers.dashboard.tls=true
+      - traefik.http.routers.dashboard.tls.certresolver=myresolver
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.middlewares=auth@docker
+      # Basic auth middleware
+      - traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_DASH_USER}
+      - traefik.http.middlewares.auth.basicauth.removeheader=true
+      # WUD — не мониторить Traefik (обновляем вручную)
+      - wud.watch=false
+
+  # ---------------------------------------------------------------------------
+  # Nginx — landing page
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    <<: [*default-logging, *no-new-privileges]
+    networks:
+      - proxy
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.nginx.rule=Host(`${BOTS_HOSTNAME}`)
+      - traefik.http.routers.nginx.entrypoints=websecure
+      - traefik.http.routers.nginx.tls=true
+      - traefik.http.routers.nginx.tls.certresolver=myresolver
+      - traefik.http.services.nginx.loadbalancer.server.port=80
+      - wud.watch=true
+
+  # ---------------------------------------------------------------------------
+  # Home Bot
+  # ---------------------------------------------------------------------------
+  home-bot:
+    image: ghcr.io/nkdab/home-bot:latest
+    restart: unless-stopped
+    <<: [*default-logging, *no-new-privileges]
+    env_file:
+      - .env
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.home-bot.rule=Host(`${BOTS_HOSTNAME}`) && PathPrefix(`/telegram`)
+      - traefik.http.routers.home-bot.entrypoints=websecure
+      - traefik.http.routers.home-bot.tls=true
+      - traefik.http.routers.home-bot.tls.certresolver=myresolver
+      - traefik.http.services.home-bot.loadbalancer.server.port=3000
+      - wud.watch=true
+
+  # ---------------------------------------------------------------------------
+  # What's Up Docker (WUD) — замена Watchtower
+  # Мониторинг обновлений образов с web-UI на порту 3000
+  # ---------------------------------------------------------------------------
+  wud:
+    image: ghcr.io/getwud/wud:latest
+    restart: unless-stopped
+    <<: [*default-logging, *no-new-privileges]
+    read_only: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - WUD_WATCHER_LOCAL_CRON=0 0 4 * * *
+      - WUD_WATCHER_LOCAL_WATCHBYDEFAULT=false
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.wud.rule=Host(`${WUD_HOSTNAME}`)
+      - traefik.http.routers.wud.entrypoints=websecure
+      - traefik.http.routers.wud.tls=true
+      - traefik.http.routers.wud.tls.certresolver=myresolver
+      - traefik.http.services.wud.loadbalancer.server.port=3000
+      - traefik.http.routers.wud.middlewares=auth@docker
+      - wud.watch=false
+
+  # ---------------------------------------------------------------------------
+  # Shared PostgreSQL 18
+  #
+  # ⚠️  ВНИМАНИЕ: Обновление с PG 16 → 18 требует миграции данных!
+  #     1. pg_dumpall -U postgres > backup.sql   (на старом PG 16)
+  #     2. Остановить стек, удалить volume pg_data
+  #     3. Запустить с новым PG 18
+  #     4. psql -U postgres < backup.sql
+  #docker
+  #     Начиная с PG 18, PGDATA = /var/lib/postgresql/18/docker
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    <<: [*default-logging, *no-new-privileges]
+    shm_size: 128mb
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - pg_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - backend
+    labels:
+      - wud.watch=true
+
+  # # ---------------------------------------------------------------------------
+  # # Vikunja — tasks / to-do
+  # # ---------------------------------------------------------------------------
+  # vikunja:
+  #   image: vikunja/vikunja:latest
+  #   restart: unless-stopped
+  #   <<: [*default-logging, *no-new-privileges]
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     VIKUNJA_DATABASE_TYPE: postgres
+  #     VIKUNJA_DATABASE_HOST: postgres
+  #     VIKUNJA_DATABASE_USER: vikunja
+  #     VIKUNJA_DATABASE_PASSWORD: ${VIKUNJA_DB_PASSWORD}
+  #     VIKUNJA_DATABASE_DATABASE: vikunja
+  #     VIKUNJA_SERVICE_PUBLICURL: https://${TASKS_HOSTNAME}
+  #     VIKUNJA_SERVICE_JWTSECRET: ${VIKUNJA_JWT_SECRET}
+  #     VIKUNJA_MAILER_ENABLED: "false"
+  #     TZ: Europe/Belgrade
+  #   volumes:
+  #     - vikunja_files:/app/vikunja/files
+  #   networks:
+  #     - proxy
+  #     - backend
+  #   labels:
+  #     - traefik.enable=true
+  #     - traefik.http.routers.vikunja.rule=Host(`${TASKS_HOSTNAME}`)
+  #     - traefik.http.routers.vikunja.entrypoints=websecure
+  #     - traefik.http.routers.vikunja.tls=true
+  #     - traefik.http.routers.vikunja.tls.certresolver=myresolver
+  #     - traefik.http.services.vikunja.loadbalancer.server.port=3456
+  #     - wud.watch=true
+
+  # # ---------------------------------------------------------------------------
+  # # Second Brain Orchestrator — Vikunja webhook enrichment
+  # # ---------------------------------------------------------------------------
+  # orchestrator:
+  #   image: ghcr.io/nkdab/vikunja-webhook-quick-add-ru:latest
+  #   pull_policy: always
+  #   restart: unless-stopped
+  #   <<: [*default-logging, *no-new-privileges]
+  #   depends_on:
+  #     vikunja:
+  #       condition: service_started
+  #   environment:
+  #     PORT: "3000"
+  #     VIKUNJA_BASE_URL: http://vikunja:3456
+  #     VIKUNJA_TOKEN: ${VIKUNJA_TOKEN}
+  #     LOG_LEVEL: debug
+  #     TZ: Europe/Belgrade
+  #   networks:
+  #     - backend
+  #   labels:
+  #     - wud.watch=true
+
+  # # ---------------------------------------------------------------------------
+  # # Vikunja -> CalDAV sync
+  # # ---------------------------------------------------------------------------
+  # vikunja-caldav-sync:
+  #   image: ghcr.io/nkdab/vikunja-webhook-caldav-sync:latest
+  #   pull_policy: always
+  #   restart: unless-stopped
+  #   <<: [*default-logging, *no-new-privileges]
+  #   depends_on:
+  #     vikunja:
+  #       condition: service_started
+  #   environment:
+  #     PORT: "3000"
+  #     LOG_LEVEL: info
+  #     VIKUNJA_WEBHOOK_SECRET: ${VIKUNJA_WEBHOOK_SECRET}
+  #     VIKUNJA_BASE_URL: https://${TASKS_HOSTNAME}
+  #     UID_DOMAIN: ${UID_DOMAIN:-home.local}
+  #     DEFAULT_DURATION_MINUTES: ${DEFAULT_DURATION_MINUTES:-30}
+  #     DONE_BEHAVIOR: ${DONE_BEHAVIOR:-keep}
+  #     DEBOUNCE_MS: ${DEBOUNCE_MS:-1500}
+  #     CALDAV_BASE_URL: ${CALDAV_BASE_URL}
+  #     CALDAV_USERNAME: ${CALDAV_USERNAME}
+  #     CALDAV_PASSWORD: ${CALDAV_PASSWORD}
+  #     CALDAV_CALENDAR_NAME: ${CALDAV_CALENDAR_NAME:-Алиса}
+  #     TZ: Europe/Belgrade
+  #     # SQLITE_PATH можно НЕ задавать (дефолт: ./data/state.sqlite)
+  #   volumes:
+  #     - caldav_sync_data:/app/data
+  #   networks:
+  #     - backend
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+  #     interval: 30s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 20s
+  #   labels:
+  #     - wud.watch=true
+
+  # # ---------------------------------------------------------------------------
+  # # n8n — workflow automation
+  # #
+  # # Перед первым запуском создать БД и пользователя в postgres:
+  # #   docker exec -it <postgres_container> psql -U postgres
+  # #   CREATE USER n8n WITH PASSWORD '<N8N_DB_PASSWORD>';
+  # #   CREATE DATABASE n8n OWNER n8n;
+  # # ---------------------------------------------------------------------------
+  # n8n:
+  #   image: docker.n8n.io/n8nio/n8n:latest
+  #   restart: unless-stopped
+  #   <<: [*default-logging, *no-new-privileges]
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     # Database
+  #     DB_TYPE: postgresdb
+  #     DB_POSTGRESDB_HOST: postgres
+  #     DB_POSTGRESDB_PORT: 5432
+  #     DB_POSTGRESDB_DATABASE: n8n
+  #     DB_POSTGRESDB_USER: n8n
+  #     DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD}
+  #     DB_POSTGRESDB_SCHEMA: public
+  #     # General
+  #     N8N_HOST: ${N8N_HOSTNAME}
+  #     N8N_PORT: 5678
+  #     N8N_PROTOCOL: https
+  #     WEBHOOK_URL: https://${N8N_HOSTNAME}
+  #     GENERIC_TIMEZONE: Europe/Belgrade
+  #     TZ: Europe/Belgrade
+  #     # Security
+  #     N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+  #     N8N_RUNNERS_ENABLED: "true"
+  #     # Опционально: отключить телеметрию
+  #     N8N_DIAGNOSTICS_ENABLED: "false"
+  #     N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+  #   volumes:
+  #     - n8n_data:/home/node/.n8n
+  #   networks:
+  #     - proxy
+  #     - backend
+  #   labels:
+  #     - traefik.enable=true
+  #     - traefik.http.routers.n8n.rule=Host(`${N8N_HOSTNAME}`)
+  #     - traefik.http.routers.n8n.entrypoints=websecure
+  #     - traefik.http.routers.n8n.tls=true
+  #     - traefik.http.routers.n8n.tls.certresolver=myresolver
+  #     - traefik.http.services.n8n.loadbalancer.server.port=5678
+  #     - wud.watch=true

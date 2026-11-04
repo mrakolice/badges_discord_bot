@@ -1,4 +1,6 @@
-CREATE TABLE IF NOT EXISTS {{ table | ident }} (
+CREATE SCHEMA IF NOT EXISTS {{ schema | ident }};
+
+CREATE TABLE IF NOT EXISTS {{ schema | ident }}.{{ table | ident }} (
     version    INTEGER     PRIMARY KEY,
     name       TEXT        NOT NULL,
     checksum   TEXT        NOT NULL,

@@ -1,2 +1,2 @@
-INSERT INTO {{ table | ident }} (version, name, checksum)
+INSERT INTO {{ schema | ident }}.{{ table | ident }} (version, name, checksum)
 VALUES ({{ version | bind }}, {{ name | bind }}, {{ checksum | bind }});

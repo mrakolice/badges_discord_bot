@@ -1,4 +1,4 @@
-SELECT table_name
+SELECT table_schema || '.' || table_name AS table_name
 FROM information_schema.tables
-WHERE table_schema = 'public'
-ORDER BY table_name;
+WHERE table_schema IN ('public', 'migrations_meta')
+ORDER BY 1;

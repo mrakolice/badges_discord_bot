@@ -31,7 +31,8 @@ Discord-бот, который живёт в Docker-контейнере и ув
    новый шаблон = файл в `sql/` + член enum-а (тест сверяет enum-ы с файлами).
    Единственная реализация — `AsyncpgDatabase`. Новый драйвер = новый `Database` + свой `Dialect`.
 5. Миграции: `sql/migrations/NNNN_name.sql.j2`, применяются `python -m src.migrate`
-   (или `MigrationRunner(db).apply()`), учёт в `schema_migrations` с sha256.
+   (или `MigrationRunner(db).apply()`), учёт в `migrations_meta.schema_migrations` с sha256
+   (отдельная схема, чтобы роль бота не имела к ней доступа).
    **Применённую миграцию не редактировать** — только новая.
 
 ## Стабильные решения
@@ -43,7 +44,7 @@ Discord-бот, который живёт в Docker-контейнере и ув
 | Доступ к БД | `asyncpg` + SQL-шаблоны `jinja2`, свой мигратор |
 | API-клиент | `httpx` |
 | Модели данных | `pydantic` |
-| База данных | PostgreSQL 16 |
+| База данных | PostgreSQL 18 (общий, из инфра-стека) |
 | Планировщик | `APScheduler` (asyncio) |
 | Конфиг | переменные окружения + `.env` |
 | Источник кампаний | Sunkwi Twitch Drops API (`https://twitch-drops-api.sunkwi.com/v2/drops`, `/v2/rewards`) |
@@ -63,8 +64,7 @@ Discord-бот, который живёт в Docker-контейнере и ув
 twitch_badge_bot/
 ├── sql/                        # ВСЕ SQL-запросы, по доменам, *.sql.j2
 │   └── migrations/             # NNNN_name.sql.j2
-├── docker/
-│   └── entrypoint.sh           # wait-for-postgres + миграции + запуск
+│   └── bootstrap/create_roles.psql  # разовое создание БД и ролей (psql, суперпользователь)
 ├── src/
 │   ├── __init__.py
 │   ├── main.py                 # точка входа
@@ -82,8 +82,10 @@ twitch_badge_bot/
 │   ├── unit/
 │   ├── integration/
 │   └── e2e/
-├── docker-compose.yml
+├── docker-compose.yml          # стек бота: db-bootstrap, migrate, bot
+├── docker-compose.infra.yml    # инфра-стек: Traefik, общий Postgres 18, WUD и др.
 ├── docker-compose.test.yml
+├── .dockerignore
 ├── Dockerfile
 ├── pyproject.toml
 ├── requirements.txt
@@ -110,8 +112,17 @@ twitch_badge_bot/
 cp .env.example .env
 # отредактировать
 
-# Поднять Postgres + bot
+# Postgres и Traefik живут в инфра-стеке (сети backend/proxy должны существовать)
+docker compose -f docker-compose.infra.yml up -d
+
+# Один раз: БД + роли (owner — миграции/DDL, app — только DML для бота)
+docker compose --profile bootstrap run --rm db-bootstrap
+
+# Сборка + автоматические миграции (применяется только недостающее)
 docker compose up --build
+
+# Миграции, затем бот (profile `bot` — пока нет src/main.py)
+docker compose --profile bot up -d --build
 
 # Unit-тесты
 uv run pytest tests/unit
@@ -130,7 +141,11 @@ DATABASE_URL=... uv run python -m src.migrate
 - `DISCORD_BOT_TOKEN`
 - `TWITCH_CLIENT_ID`
 - `TWITCH_CLIENT_SECRET`
-- `DATABASE_URL`
+- `DATABASE_URL` — в Docker собирается в compose из `BOT_DB_*` (см. `.env.example`).
+
+Контейнеры: пользователь uid 10001, read-only FS, `cap_drop: ALL`, `no-new-privileges`.
+Бот получает только свои переменные (не весь `.env`): суперпользовательский пароль и пароль
+owner-роли до него не доходят.
 
 Опциональные:
 - `DROPS_API_KEY` — для повышения лимита Sunkwi API.

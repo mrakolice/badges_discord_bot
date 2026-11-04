@@ -1,3 +1,3 @@
 SELECT version, name, checksum, applied_at
-FROM {{ table | ident }}
+FROM {{ schema | ident }}.{{ table | ident }}
 ORDER BY version;

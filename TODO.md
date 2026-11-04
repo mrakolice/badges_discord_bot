@@ -11,11 +11,12 @@
   - `python-dotenv`
   - `pytest`, `pytest-asyncio`, `respx`
 - [x] Создать `pyproject.toml` (pytest, ruff настройки).
-- [ ] Обновить `Dockerfile` (Python 3.14 slim, netcat для wait-postgres, копировать `sql/`).
-- [ ] Создать `docker-compose.yml` с `postgres` и `bot` в сети `botnet`.
 - [x] Создать `docker-compose.test.yml` для интеграционных тестов.
-- [ ] Обновить `.env.example` под Discord + Postgres + Twitch + Sunkwi API.
-- [ ] Создать `docker/entrypoint.sh`: wait-for-postgres + `python -m src.migrate` + запуск бота.
+- [x] Обновить `.env.example` под Discord + Postgres + Twitch + Sunkwi API.
+- [x] `Dockerfile` (multi-stage uv, Python 3.14, uid 10001) + `.dockerignore`.
+- [x] `docker-compose.yml`: `db-bootstrap` (роли), `migrate` (one-shot, ждёт Postgres),
+  `bot` (после миграций); внешние сети `backend`/`proxy` инфра-стека, Traefik-метки выключены.
+- [ ] Убрать profile `bot` и включить Traefik-метки, когда появятся `src/main.py` и `/health`.
 
 ## 2. Слой доступа к данным (asyncpg + Jinja SQL)
 - [x] `src/db/templates.py`: `SqlTemplates`, `Dialect`, фильтры `bind` / `ident`.
@@ -81,7 +82,7 @@
   - При `/follow` сразу показывать активные кампании игры.
 - [ ] Создать `src/main.py`:
   - `create_asyncpg_database(settings.database_url)` + `connect()`.
-  - `MigrationRunner(db).apply()` при старте (или через entrypoint).
+  - Миграции уже применяет сервис `migrate` до старта бота.
   - Создание `discord.ext.commands.Bot`.
   - Подключение Cog.
   - APScheduler с `checker.run()`.

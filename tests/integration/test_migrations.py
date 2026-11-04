@@ -7,12 +7,12 @@ from tests.integration.queries import TestSql
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 EXPECTED_TABLES = {
-    "channels",
-    "subscriptions",
-    "campaigns_seen",
-    "state",
-    "stream_notifications",
-    "schema_migrations",
+    "public.channels",
+    "public.subscriptions",
+    "public.campaigns_seen",
+    "public.state",
+    "public.stream_notifications",
+    "migrations_meta.schema_migrations",
 }
 
 

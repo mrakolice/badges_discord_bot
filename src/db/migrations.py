@@ -10,6 +10,8 @@ from src.db.templates import TEMPLATE_SUFFIX
 log = logging.getLogger(__name__)
 
 MIGRATIONS_DIR = "migrations"
+# Separate schema: the app role gets DML only in `public`, so it can't touch migration history.
+VERSIONS_SCHEMA = "migrations_meta"
 VERSIONS_TABLE = "schema_migrations"
 # Arbitrary constant shared by all bot instances so only one applies migrations at a time.
 ADVISORY_LOCK_KEY = 7_316_401_022
@@ -53,8 +55,12 @@ class MigrationRunner:
         migrations = self.discover()
         async with self._db.transaction() as tx:
             await tx.execute(SchemaVersioning.ACQUIRE_LOCK, key=ADVISORY_LOCK_KEY)
-            await tx.execute_script(SchemaVersioning.ENSURE_TABLE, table=VERSIONS_TABLE)
-            rows = await tx.fetch(SchemaVersioning.LIST_APPLIED, table=VERSIONS_TABLE)
+            await tx.execute_script(
+                SchemaVersioning.ENSURE_TABLE, schema=VERSIONS_SCHEMA, table=VERSIONS_TABLE
+            )
+            rows = await tx.fetch(
+                SchemaVersioning.LIST_APPLIED, schema=VERSIONS_SCHEMA, table=VERSIONS_TABLE
+            )
             applied = {row["version"]: row["checksum"] for row in rows}
 
             pending: list[Migration] = []
@@ -73,6 +79,7 @@ class MigrationRunner:
                 await tx.execute_script(migration.template)
                 await tx.execute(
                     SchemaVersioning.RECORD_APPLIED,
+                    schema=VERSIONS_SCHEMA,
                     table=VERSIONS_TABLE,
                     version=migration.version,
                     name=migration.name,

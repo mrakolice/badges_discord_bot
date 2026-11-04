@@ -34,11 +34,11 @@
 | Discord-бот | `discord.py 2.x` | Зрелая, официальная, async, поддержка slash-команд |
 | HTTP-клиент | `httpx` | Современный async API, удобно мокать |
 | Модели API | `pydantic` | Валидация и ясная структура данных из Sunkwi API |
-| База данных | PostgreSQL 16 | Надёжность, JSONB, многопользовательская нагрузка |
+| База данных | PostgreSQL 18 (общий, из инфра-стека) | Надёжность, JSONB, многопользовательская нагрузка |
 | Драйвер БД | `asyncpg` | Самый быстрый async-драйвер для Postgres |
 | Работа с БД | SQL-файлы `sql/<домен>/*.sql.j2` (Jinja2, фильтры `bind`/`ident`) | Весь SQL на виду, параметры всегда биндятся |
 | Абстракция БД | ABC `QueryExecutor`/`Database` + `AsyncpgDatabase` | Можно подменить драйвер |
-| Миграции | свой `MigrationRunner` (`sql/migrations/`, `schema_migrations`) | Те же правила шаблонов, advisory lock |
+| Миграции | свой `MigrationRunner` (`sql/migrations/`, `migrations_meta.schema_migrations`), сервис `migrate` при каждом `up` | Те же правила шаблонов, advisory lock |
 | Планировщик | `APScheduler` (asyncio) | Гибкие интервалы, надёжен |
 | Логирование | стандартный `logging` → stdout | Для Docker достаточно |
 | Конфиг | переменные окружения + `.env` | Просто и безопасно |
@@ -62,12 +62,14 @@
 ## 5. Архитектура
 
 ```
-Docker Network: botnet
-  │
-  ├── postgres:16-alpine
-  │       └── PostgreSQL (миграции: python -m src.migrate)
-  │
-  └── app (twitch-badge-bot)
+Инфра-стек (docker-compose.infra.yml)        Стек бота (docker-compose.yml)
+  ├── traefik ── сеть proxy (external) ───────┐
+  └── postgres:18-alpine ── сеть backend ─────┼── db-bootstrap (разово, profile bootstrap)
+                                              ├── migrate (one-shot, роль owner)
+                                              │       │ service_completed_successfully
+                                              │       ▼
+                                              └── bot (роль app, только DML)
+  bot (twitch-badge-bot)
           │
           ├── APScheduler (раз в N минут)
           │       │
