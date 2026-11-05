@@ -76,3 +76,33 @@ async def test_get_game(twitch: TwitchClient) -> None:
 
 async def test_zero_streams_requested_makes_no_call(twitch: TwitchClient) -> None:
     assert await twitch.get_streams_for_game("1", 0) == []
+
+
+@respx.mock
+async def test_global_badges_are_flattened(twitch: TwitchClient) -> None:
+    respx.post(TOKEN_URL).mock(return_value=token())
+    version = {
+        "image_url_1x": "https://x/1",
+        "image_url_2x": "https://x/2",
+        "image_url_4x": "https://x/3",
+        "title": "Worlds 2026 Supporter",
+        "description": "Watched Worlds",
+        "click_action": "visit_url",
+        "click_url": "",
+    }
+    respx.get(f"{HELIX_URL}/chat/badges/global").respond(
+        json={
+            "data": [
+                {"set_id": "worlds-2026", "versions": [{"id": "1", **version}]},
+                {"set_id": "bits", "versions": [{"id": "1", **version}, {"id": "100", **version}]},
+                {"set_id": "broken", "versions": [{"id": "1"}]},
+            ]
+        }
+    )
+    badges = await twitch.get_global_badges()
+    assert [(b.set_id, b.version_id) for b in badges] == [
+        ("worlds-2026", "1"),
+        ("bits", "1"),
+        ("bits", "100"),
+    ]
+    assert badges[0].click_url is None and badges[0].image_url_4x == "https://x/3"

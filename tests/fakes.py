@@ -7,6 +7,7 @@ from typing import Any
 import discord
 
 from src.checker import SendStatus
+from src.db.records import BadgeData
 from src.drops_api import (
     DropsSnapshot,
     GameDrops,
@@ -20,6 +21,8 @@ FIXTURES = Path(__file__).parent / "fixtures"
 PLAIN_GAME_ID = "618479630"  # The Other Side, any channel gives drops
 RESTRICTED_GAME_ID = "32502"  # World of Warships, only allow-listed channels
 ALLOWED_LOGIN = "worldofwarships"
+BADGE_GAME_ID = "21779"  # League of Legends, "Worlds 2026 Chat Badge" gives a chat badge
+BADGE_NAME = "Worlds 2026 Supporter"
 # Both fixture drop campaigns end 2026-11-04T23:00Z; the reward one ends 2026-11-23.
 BEFORE_ENDING = datetime(2026, 11, 2, 12, 0, tzinfo=UTC)
 ENDING_SOON = datetime(2026, 11, 4, 12, 0, tzinfo=UTC)
@@ -66,10 +69,14 @@ class FakeTwitch:
         self.by_login: dict[str, TwitchStream] = {}
         self.game_calls: list[tuple[str, int]] = []
         self.login_calls: list[list[str]] = []
+        self.badges: list[BadgeData] = []
 
     async def get_streams_for_game(self, game_id: str, first: int) -> list[TwitchStream]:
         self.game_calls.append((game_id, first))
         return self.by_game[game_id][:first]
+
+    async def get_global_badges(self) -> list[BadgeData]:
+        return list(self.badges)
 
     async def get_streams_for_logins(self, logins: list[str]) -> list[TwitchStream]:
         self.login_calls.append(list(logins))
@@ -89,3 +96,17 @@ class FakeNotifier:
 
     def titles(self, channel_id: int | None = None) -> list[str]:
         return [e.title or "" for c, e in self.sent if channel_id is None or c == channel_id]
+
+
+def badge(set_id: str, title: str, version_id: str = "1", **extra: Any) -> BadgeData:
+    url = f"https://static-cdn.jtvnw.net/badges/v1/{set_id}-{version_id}"
+    return BadgeData(
+        set_id=set_id,
+        version_id=version_id,
+        title=title,
+        description=extra.pop("description", f"{title} description"),
+        image_url_1x=f"{url}/1",
+        image_url_2x=f"{url}/2",
+        image_url_4x=f"{url}/3",
+        **extra,
+    )

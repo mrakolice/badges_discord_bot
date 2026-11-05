@@ -1,0 +1,6 @@
+SELECT set_id, version_id, title, description, image_url_1x, image_url_2x, image_url_4x,
+       click_url, first_seen_at, last_seen_at
+FROM chat_badges
+WHERE announce
+  AND first_seen_at >= now() - make_interval(days => {{ days | bind }})
+ORDER BY first_seen_at, set_id, version_id;

@@ -1,0 +1,25 @@
+{# One round trip for the whole Helix catalog; xmax = 0 marks freshly inserted rows. #}
+INSERT INTO chat_badges (set_id, version_id, title, description, image_url_1x, image_url_2x,
+                         image_url_4x, click_url, announce)
+SELECT b.set_id, b.version_id, b.title, b.description, b.image_url_1x, b.image_url_2x,
+       b.image_url_4x, b.click_url, {{ announce | bind }}
+FROM unnest(
+    {{ set_ids | bind }}::text[],
+    {{ version_ids | bind }}::text[],
+    {{ titles | bind }}::text[],
+    {{ descriptions | bind }}::text[],
+    {{ images_1x | bind }}::text[],
+    {{ images_2x | bind }}::text[],
+    {{ images_4x | bind }}::text[],
+    {{ click_urls | bind }}::text[]
+) AS b (set_id, version_id, title, description, image_url_1x, image_url_2x, image_url_4x,
+        click_url)
+ON CONFLICT (set_id, version_id) DO UPDATE
+    SET title = EXCLUDED.title,
+        description = EXCLUDED.description,
+        image_url_1x = EXCLUDED.image_url_1x,
+        image_url_2x = EXCLUDED.image_url_2x,
+        image_url_4x = EXCLUDED.image_url_4x,
+        click_url = EXCLUDED.click_url,
+        last_seen_at = now()
+RETURNING set_id, version_id, (xmax = 0) AS inserted;

@@ -1,0 +1,31 @@
+{#
+  Catalog of global Twitch chat badges (Helix GET /chat/badges/global) and a per-channel log
+  of "new badge" announcements. `announce = false` marks the silent baseline import, so the
+  hundreds of badges that existed before the first sync are never announced.
+#}
+CREATE TABLE chat_badges (
+    set_id        TEXT        NOT NULL,
+    version_id    TEXT        NOT NULL,
+    title         TEXT        NOT NULL,
+    description   TEXT        NOT NULL DEFAULT '',
+    image_url_1x  TEXT        NOT NULL,
+    image_url_2x  TEXT        NOT NULL,
+    image_url_4x  TEXT        NOT NULL,
+    click_url     TEXT,
+    announce      BOOLEAN     NOT NULL,
+    first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_seen_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (set_id, version_id)
+);
+
+CREATE INDEX chat_badges_announce_idx ON chat_badges (first_seen_at) WHERE announce;
+
+CREATE TABLE badge_deliveries (
+    channel_id   BIGINT      NOT NULL REFERENCES channels (id) ON DELETE CASCADE,
+    set_id       TEXT        NOT NULL,
+    version_id   TEXT        NOT NULL,
+    delivered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (channel_id, set_id, version_id),
+    FOREIGN KEY (set_id, version_id)
+        REFERENCES chat_badges (set_id, version_id) ON DELETE CASCADE
+);

@@ -7,6 +7,7 @@ import discord
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from src.badge_watcher import BadgeWatcher, BadgeWatcherSettings
 from src.bot import BadgeBot, DiscordNotifier, Services
 from src.checker import Checker, CheckerSettings
 from src.config import Settings
@@ -65,13 +66,27 @@ async def run(settings: Settings) -> None:
                     campaign_retention_days=settings.campaign_retention_days,
                 ),
             )
+            badge_watcher = BadgeWatcher(
+                storage,
+                twitch,
+                drops_api,
+                notifier,
+                BadgeWatcherSettings(announce_window_days=settings.badge_announce_window_days),
+            )
             interval = check_interval(settings)
+            badge_interval = timedelta(minutes=settings.badge_sync_interval_minutes)
 
             async def scheduled_check() -> None:
                 try:
                     await checker.run()
                 except Exception:
                     log.exception("scheduled check failed")
+
+            async def scheduled_badge_sync() -> None:
+                try:
+                    await badge_watcher.sync()
+                except Exception:
+                    log.exception("badge catalog sync failed")
 
             async def on_first_ready() -> None:
                 scheduler.add_job(
@@ -84,8 +99,18 @@ async def run(settings: Settings) -> None:
                     coalesce=True,
                     misfire_grace_time=int(interval.total_seconds()),
                 )
+                scheduler.add_job(
+                    scheduled_badge_sync,
+                    "interval",
+                    seconds=badge_interval.total_seconds(),
+                    id="badges",
+                    next_run_time=datetime.now(UTC),
+                    max_instances=1,
+                    coalesce=True,
+                    misfire_grace_time=int(badge_interval.total_seconds()),
+                )
                 scheduler.start()
-                log.info("checks scheduled every %s", interval)
+                log.info("checks every %s, badge catalog sync every %s", interval, badge_interval)
                 if settings.default_notification_channel_id:
                     await notifier.send(
                         settings.default_notification_channel_id,
@@ -96,7 +121,10 @@ async def run(settings: Settings) -> None:
                         ),
                     )
 
-            bot.attach(Services(storage, drops_api, twitch, checker), on_first_ready=on_first_ready)
+            bot.attach(
+                Services(storage, drops_api, twitch, checker, badge_watcher),
+                on_first_ready=on_first_ready,
+            )
 
             def is_healthy() -> dict[str, bool]:
                 last = checker.last_success_at

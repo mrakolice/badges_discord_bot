@@ -36,6 +36,19 @@ class LiveAlerts(Query):
     RELEASE = "live_alerts/release"
 
 
+class BadgeCatalog(Query):
+    UPSERT_MANY = "badge_catalog/upsert_many"
+    COUNT = "badge_catalog/count"
+    LIST_ANNOUNCEABLE = "badge_catalog/list_announceable"
+    SEARCH = "badge_catalog/search"
+    GET = "badge_catalog/get"
+
+
+class BadgeAnnouncements(Query):
+    CLAIM = "badge_announcements/claim"
+    RELEASE = "badge_announcements/release"
+
+
 class BotState(Query):
     GET = "bot_state/get"
     SET = "bot_state/set"
@@ -54,6 +67,8 @@ ALL_QUERY_GROUPS: tuple[type[Query], ...] = (
     CampaignTracking,
     Announcements,
     LiveAlerts,
+    BadgeCatalog,
+    BadgeAnnouncements,
     BotState,
     SchemaVersioning,
 )

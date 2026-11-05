@@ -104,12 +104,16 @@ class Checker:
             await self._deliver_drop(game, campaign, [channel_id], report, set())
         return report.sent
 
-    async def deliver_rewards_to_channel(self, channel_id: int) -> int:
-        if self._api.rewards is None:
-            return 0
+    async def deliver_badges_to_channel(self, channel_id: int) -> int:
+        """Right after /followbadges: active reward campaigns and Drops that give chat badges."""
         report = CheckReport()
-        for campaign in self._api.rewards.active_campaigns(self._clock()):
-            await self._deliver_reward(campaign, [channel_id], report, set())
+        now = self._clock()
+        for game in self._api.drops.games if self._api.drops else []:
+            for campaign in game.active_campaigns(now):
+                if campaign.badge_benefits:
+                    await self._deliver_drop(game, campaign, [channel_id], report, set())
+        for reward in self._api.rewards.active_campaigns(now) if self._api.rewards else []:
+            await self._deliver_reward(reward, [channel_id], report, set())
         return report.sent
 
     # --- campaigns ---
@@ -117,12 +121,20 @@ class Checker:
     async def _deliver_drops(self, now: datetime, report: CheckReport, gone: set[int]) -> None:
         if self._api.drops is None:
             return
+        badge_channels = await self._storage.get_channels_for_target("reward", ALL_REWARDS)
         for game in self._api.drops.games:
             campaigns = game.active_campaigns(now)
             if not campaigns:
                 continue
-            channels = await self._storage.get_channels_for_target("game", game.game_id)
+            game_channels = await self._storage.get_channels_for_target("game", game.game_id)
             for campaign in campaigns:
+                # Chat-badge drops also go to /followbadges; the delivery key is the same, so a
+                # channel following both the game and badges gets a single message.
+                channels = (
+                    sorted({*game_channels, *badge_channels})
+                    if campaign.badge_benefits
+                    else game_channels
+                )
                 await self._deliver_drop(game, campaign, channels, report, gone)
 
     async def _deliver_rewards(self, now: datetime, report: CheckReport, gone: set[int]) -> None:

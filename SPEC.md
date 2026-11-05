@@ -27,6 +27,12 @@
 
 ---
 
+### Каталог глобальных бейджей
+
+Twitch Helix `GET /helix/chat/badges/global` (токен приложения) — все глобальные бейджи чата:
+название, описание, картинки, ссылка. Дат доступности и способа получения в нём нет: их бот
+берёт из Drops/reward-кампаний Sunkwi, сопоставляя бейдж с наградой по названию.
+
 ## 3. Финальный стек
 
 | Компонент | Выбор | Почему |
@@ -59,6 +65,8 @@
 5. Для Drops ищет live-стримы через Twitch Helix — только те, что реально дают дропы: каналы из
    `allow.channels`, если кампания ограничена, иначе топ-`STREAM_NOTIFY_TOP_N` по зрителям.
 6. Напоминает, если кампания закончится в течение `ENDING_SOON_HOURS` (24 ч).
+7. Раз в `BADGE_SYNC_INTERVAL_MINUTES` (60) синхронизирует каталог глобальных бейджей Helix и
+   анонсирует новые подписчикам `/followbadges`, со ссылкой на кампанию, если бейдж в ней есть.
 
 **Бот не открывает стримы и не эмулирует просмотр.**
 
@@ -165,6 +173,16 @@ PK: `(channel_id, campaign_id, campaign_type, kind)`. Вставка `ON CONFLIC
 Уникальность: `(channel_id, game_id, streamer_login)`; повторное уведомление — атомарным upsert,
 только если прошло `STREAM_NOTIFY_COOLDOWN_HOURS`.
 
+### `chat_badges` (миграция `0003`)
+
+Каталог Helix: `set_id`, `version_id` (PK), `title`, `description`, `image_url_1x/2x/4x`,
+`click_url`, `announce` (`false` — тихая базовая загрузка), `first_seen_at`, `last_seen_at`.
+
+### `badge_deliveries`
+
+`(channel_id, set_id, version_id)` PK, FK на `channels` и `chat_badges` — «бейдж анонсирован
+в канал», та же схема «claim до отправки, release при ошибке».
+
 Учёт миграций — `migrations_meta.schema_migrations` (отдельная схема, недоступная роли бота).
 
 ---
@@ -176,7 +194,9 @@ PK: `(channel_id, campaign_id, campaign_type, kind)`. Вставка `ON CONFLIC
 | Команда | Описание |
 |---|---|
 | `/games [поиск]` | Список активных игр с Drops (из снимка, без запроса к API). |
-| `/rewards` | Список активных reward/badge-кампаний. |
+| `/rewards` | Бейджи и награды, доступные сейчас: бейджи из Drops и reward-кампании. |
+| `/badges [поиск]` | Каталог глобальных бейджей (без поиска — недавно обнаруженные). |
+| `/badge <бейдж>` | Карточка бейджа: описание, когда обнаружен, как получить. |
 | `/follow <игра>` | Подписать канал на Drops игры (автодополнение; игры без кампаний — через Helix). |
 | `/unfollow <id>` | Отписать канал по ID подписки. |
 | `/followbadges` | Подписать канал на badge/reward-кампании. |
@@ -198,7 +218,10 @@ PK: `(channel_id, campaign_id, campaign_type, kind)`. Вставка `ON CONFLIC
 2. **Новая кампания** — уведомление во все подписанные каналы (один раз на канал).
 3. **Live-стример** — «сейчас в эфире» для стримов, дающих дропы (см. §4.5), не чаще раза в
    `STREAM_NOTIFY_COOLDOWN_HOURS` на канал+игра+стример.
-4. **Reward/badge-кампании** — каналам, подписанным через `/followbadges`.
+4. **Бейджи** — каналам, подписанным через `/followbadges`: reward-кампании, Drops с бейджем
+   в чат (`distributionType = BADGE`; канал, подписанный и на игру, получит одно сообщение) и
+   новые глобальные бейджи из каталога Helix. Первая синхронизация каталога — тихая база;
+   поздний подписчик получает бейджи, обнаруженные за `BADGE_ANNOUNCE_WINDOW_DAYS` (14).
 5. **Кампания скоро заканчивается** — напоминание за `ENDING_SOON_HOURS`; если кампания впервые
    видна каналу уже в этом окне — одно объединённое сообщение.
 6. Упоминания (`@everyone`, роли) в сообщениях бота отключены.
@@ -223,6 +246,8 @@ STREAM_NOTIFY_COOLDOWN_HOURS=6
 STREAM_NOTIFY_TOP_N=3             # 0 — без live-уведомлений
 ENDING_SOON_HOURS=24
 CAMPAIGN_RETENTION_DAYS=30
+BADGE_SYNC_INTERVAL_MINUTES=60    # не меньше 15
+BADGE_ANNOUNCE_WINDOW_DAYS=14
 BOT_HTTP_PORT=8080                # /health; 0 — выключить
 ```
 

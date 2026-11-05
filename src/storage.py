@@ -1,8 +1,11 @@
+from collections.abc import Sequence
 from typing import Any
 
 from src.db.base import QueryExecutor, Row
 from src.db.queries import (
     Announcements,
+    BadgeAnnouncements,
+    BadgeCatalog,
     BotState,
     CampaignTracking,
     ChannelRegistry,
@@ -11,9 +14,11 @@ from src.db.queries import (
     Query,
 )
 from src.db.records import (
+    BadgeData,
     CampaignSeen,
     CampaignType,
     Channel,
+    ChatBadge,
     DeliveryKind,
     Subscription,
     SubscriptionType,
@@ -173,6 +178,59 @@ class Storage:
             streamer_login=streamer_login,
         )
 
+    # badge_catalog
+
+    async def upsert_badges(self, badges: Sequence[BadgeData], *, announce: bool) -> int:
+        """Stores the Helix catalog; returns how many badge versions are new."""
+        if not badges:
+            return 0
+        rows = await self._db.fetch(
+            BadgeCatalog.UPSERT_MANY,
+            announce=announce,
+            set_ids=[b.set_id for b in badges],
+            version_ids=[b.version_id for b in badges],
+            titles=[b.title for b in badges],
+            descriptions=[b.description for b in badges],
+            images_1x=[b.image_url_1x for b in badges],
+            images_2x=[b.image_url_2x for b in badges],
+            images_4x=[b.image_url_4x for b in badges],
+            click_urls=[b.click_url for b in badges],
+        )
+        return sum(1 for r in rows if r["inserted"])
+
+    async def count_badges(self) -> int:
+        return int(await self._db.fetchval(BadgeCatalog.COUNT))
+
+    async def announceable_badges(self, within_days: int) -> list[ChatBadge]:
+        rows = await self._db.fetch(BadgeCatalog.LIST_ANNOUNCEABLE, days=within_days)
+        return [ChatBadge.model_validate(r) for r in rows]
+
+    async def search_badges(self, query: str | None, limit: int) -> list[ChatBadge]:
+        """Newest first; `query` is a plain substring, wildcards in it are matched literally."""
+        pattern = f"%{_escape_like(query.strip())}%" if query and query.strip() else None
+        rows = await self._db.fetch(BadgeCatalog.SEARCH, pattern=pattern, limit=limit)
+        return [ChatBadge.model_validate(r) for r in rows]
+
+    async def get_badge(self, set_id: str, version_id: str) -> ChatBadge | None:
+        row = await self._db.fetchrow(BadgeCatalog.GET, set_id=set_id, version_id=version_id)
+        return ChatBadge.model_validate(row) if row else None
+
+    # badge_announcements
+
+    async def claim_badge_delivery(self, channel_id: int, set_id: str, version_id: str) -> bool:
+        claimed = await self._db.fetchval(
+            BadgeAnnouncements.CLAIM, channel_id=channel_id, set_id=set_id, version_id=version_id
+        )
+        return claimed is not None
+
+    async def release_badge_delivery(self, channel_id: int, set_id: str, version_id: str) -> None:
+        await self._db.execute(
+            BadgeAnnouncements.RELEASE,
+            channel_id=channel_id,
+            set_id=set_id,
+            version_id=version_id,
+        )
+
     # bot_state
 
     async def get_state(self, key: str) -> Any:
@@ -180,6 +238,10 @@ class Storage:
 
     async def set_state(self, key: str, value: Any) -> None:
         await self._db.execute(BotState.SET, key=key, value=value)
+
+
+def _escape_like(text: str) -> str:
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def _required(row: Row | None, query: Query) -> Row:

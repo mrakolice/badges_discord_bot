@@ -4,7 +4,9 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import httpx
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
+
+from src.db.records import BadgeData
 
 log = logging.getLogger(__name__)
 
@@ -67,6 +69,28 @@ class TwitchClient:
     async def get_game(self, name: str) -> TwitchGame | None:
         data = await self._get("/games", [("name", name)])
         return TwitchGame.model_validate(data[0]) if data else None
+
+    async def get_global_badges(self) -> list[BadgeData]:
+        """Every global chat badge version (Helix GET /chat/badges/global)."""
+        badges: list[BadgeData] = []
+        for badge_set in await self._get("/chat/badges/global", []):
+            for version in badge_set.get("versions", []):
+                try:
+                    badges.append(
+                        BadgeData(
+                            set_id=badge_set["set_id"],
+                            version_id=version["id"],
+                            title=version.get("title") or badge_set["set_id"],
+                            description=version.get("description") or "",
+                            image_url_1x=version["image_url_1x"],
+                            image_url_2x=version["image_url_2x"],
+                            image_url_4x=version["image_url_4x"],
+                            click_url=version.get("click_url") or None,
+                        )
+                    )
+                except (KeyError, ValidationError) as exc:
+                    log.warning("skipping malformed badge %s: %s", badge_set.get("set_id"), exc)
+        return badges
 
     async def get_streams_for_game(self, game_id: str, first: int) -> list[TwitchStream]:
         """Live streams of the game, most viewers first (Helix default order)."""

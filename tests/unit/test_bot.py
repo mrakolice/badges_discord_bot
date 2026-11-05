@@ -18,6 +18,8 @@ EXPECTED_COMMANDS = {
     "list",
     "checknow",
     "help",
+    "badges",
+    "badge",
 }
 MANAGE_ONLY = {"follow", "unfollow", "followbadges", "unfollowbadges", "checknow"}
 
@@ -31,7 +33,7 @@ def settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
 
 async def test_all_spec_commands_registered_with_permissions(settings: Settings) -> None:
     bot = BadgeBot(settings)
-    services = Services(None, None, None, None)  # type: ignore[arg-type]
+    services = Services(None, None, None, None, None)  # type: ignore[arg-type]
     await bot.add_cog(BadgeBotCog(bot, services))
     commands = {c.name: c for c in bot.tree.get_commands()}
     assert set(commands) == EXPECTED_COMMANDS

@@ -7,15 +7,18 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.badge_watcher import BadgeWatcher
 from src.checker import Checker, SendStatus
 from src.config import Settings
-from src.db.records import ALL_REWARDS
-from src.drops_api import DropsApiClient, GameDrops, Route
+from src.db.records import ALL_REWARDS, ChatBadge
+from src.drops_api import DropsApiClient, GameDrops, Route, badge_offers
 from src.notifications import (
     batch_embeds,
+    build_badge_embed,
+    build_badges_list_embeds,
     build_games_list_embeds,
     build_help_embed,
-    build_rewards_list_embeds,
+    build_offers_list_embeds,
     build_subscriptions_list_embed,
 )
 from src.storage import Storage
@@ -23,7 +26,9 @@ from src.twitch import TwitchClient, TwitchError
 
 log = logging.getLogger(__name__)
 
-ALL_REWARDS_NAME = "Все reward/badge-кампании"
+ALL_REWARDS_NAME = "Бейджи: новые, из Drops и reward-кампаний"
+BADGE_SEARCH_LIMIT = 50
+NEWEST_BADGES = 25
 AUTOCOMPLETE_LIMIT = 25
 CHOICE_LIMIT = 100
 NO_DATA = "Данные о кампаниях ещё не загружены — попробуйте через пару минут."
@@ -35,6 +40,7 @@ class Services:
     drops_api: DropsApiClient
     twitch: TwitchClient
     checker: Checker
+    badge_watcher: BadgeWatcher
 
 
 class DiscordNotifier:
@@ -115,6 +121,7 @@ class BadgeBotCog(commands.Cog):
         self.drops_api = services.drops_api
         self.twitch = services.twitch
         self.checker = services.checker
+        self.badge_watcher = services.badge_watcher
 
     # --- browsing ---
 
@@ -135,17 +142,58 @@ class BadgeBotCog(commands.Cog):
             interaction, build_games_list_embeds(games, now), _freshness(snapshot.fetched_at)
         )
 
-    @app_commands.command(name="rewards", description="Активные reward/badge-кампании")
+    @app_commands.command(
+        name="rewards", description="Бейджи и награды, которые можно получить сейчас"
+    )
     @app_commands.guild_only()
     async def rewards(self, interaction: discord.Interaction) -> None:
-        snapshot = self.drops_api.rewards
-        if snapshot is None:
+        drops, rewards = self.drops_api.drops, self.drops_api.rewards
+        if drops is None and rewards is None:
             await _reply(interaction, NO_DATA, ephemeral=True)
             return
-        campaigns = snapshot.active_campaigns(datetime.now(UTC))
-        await _reply_embeds(
-            interaction, build_rewards_list_embeds(campaigns), _freshness(snapshot.fetched_at)
-        )
+        offers = badge_offers(drops, rewards, datetime.now(UTC))
+        fetched = min(s.fetched_at for s in (drops, rewards) if s is not None)
+        await _reply_embeds(interaction, build_offers_list_embeds(offers), _freshness(fetched))
+
+    @app_commands.command(name="badges", description="Каталог глобальных бейджей Twitch")
+    @app_commands.rename(search="поиск")
+    @app_commands.describe(search="Часть названия бейджа")
+    @app_commands.guild_only()
+    async def badges(self, interaction: discord.Interaction, search: str | None = None) -> None:
+        if search:
+            found = await self.storage.search_badges(search, BADGE_SEARCH_LIMIT)
+            title = f"🏅 Бейджи: «{search}»"
+        else:
+            found = await self.storage.search_badges(None, NEWEST_BADGES)
+            title = "🏅 Недавно обнаруженные бейджи"
+        await _reply_embeds(interaction, build_badges_list_embeds(found, title), None)
+
+    @app_commands.command(name="badge", description="Карточка бейджа: описание и как получить")
+    @app_commands.rename(badge_key="бейдж")
+    @app_commands.describe(badge_key="Название бейджа")
+    @app_commands.guild_only()
+    async def badge(self, interaction: discord.Interaction, badge_key: str) -> None:
+        badge = await self._resolve_badge(badge_key)
+        if badge is None:
+            await _reply(
+                interaction, f"Бейдж «{badge_key}» не найден. См. /badges.", ephemeral=True
+            )
+            return
+        offers = self.badge_watcher.offers_for(badge)
+        await _reply(interaction, embed=build_badge_embed(badge, offers))
+
+    @badge.autocomplete("badge_key")
+    async def badge_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        found = await self.storage.search_badges(current or None, AUTOCOMPLETE_LIMIT)
+        return [
+            app_commands.Choice(
+                name=f"{b.title} ({b.set_id} v{b.version_id})"[:CHOICE_LIMIT],
+                value=f"{b.set_id}/{b.version_id}"[:CHOICE_LIMIT],
+            )
+            for b in found
+        ]
 
     @app_commands.command(name="list", description="Подписки этого канала")
     @app_commands.guild_only()
@@ -224,7 +272,9 @@ class BadgeBotCog(commands.Cog):
         )
         await _reply(interaction, message, ephemeral=not removed)
 
-    @app_commands.command(name="followbadges", description="Подписать канал на badge-кампании")
+    @app_commands.command(
+        name="followbadges", description="Подписать канал на новые бейджи и badge-кампании"
+    )
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
     @app_commands.checks.has_permissions(manage_channels=True)
@@ -239,10 +289,15 @@ class BadgeBotCog(commands.Cog):
         if subscription is None:
             await _reply(interaction, "Канал уже подписан на badge-кампании.")
             return
-        await _reply(interaction, f"Подписал канал на badge-кампании (ID `#{subscription.id}`).")
-        await self.checker.deliver_rewards_to_channel(channel_id)
+        await _reply(
+            interaction,
+            f"Подписал канал на бейджи (ID `#{subscription.id}`): новые глобальные бейджи, "
+            "бейджи из Drops и reward-кампании.",
+        )
+        await self.checker.deliver_badges_to_channel(channel_id)
+        await self.badge_watcher.announce_to_channel(channel_id)
 
-    @app_commands.command(name="unfollowbadges", description="Отписать канал от badge-кампаний")
+    @app_commands.command(name="unfollowbadges", description="Отписать канал от бейджей")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
     @app_commands.checks.has_permissions(manage_channels=True)
@@ -310,6 +365,15 @@ class BadgeBotCog(commands.Cog):
         stored = await self.storage.ensure_channel(channel.id, interaction.guild.id, name)
         return stored.id
 
+    async def _resolve_badge(self, value: str) -> ChatBadge | None:
+        """Autocomplete passes "set_id/version_id"; free text picks the newest title match."""
+        set_id, sep, version_id = value.partition("/")
+        if sep and (badge := await self.storage.get_badge(set_id, version_id)):
+            return badge
+        found = await self.storage.search_badges(value, BADGE_SEARCH_LIMIT)
+        exact = [b for b in found if b.title.casefold() == value.strip().casefold()]
+        return (exact or found or [None])[0]
+
     async def _resolve_game(self, value: str) -> tuple[str, str] | None:
         """Autocomplete passes a game id; free text is matched by name, then via Helix."""
         snapshot = self.drops_api.drops
@@ -345,7 +409,7 @@ async def _reply(
 
 
 async def _reply_embeds(
-    interaction: discord.Interaction, embeds: list[discord.Embed], content: str
+    interaction: discord.Interaction, embeds: list[discord.Embed], content: str | None
 ) -> None:
     for index, batch in enumerate(batch_embeds(embeds)):
         text = content if index == 0 else None

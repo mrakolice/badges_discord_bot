@@ -51,8 +51,9 @@ async def test_full_cycle_against_postgres(setup) -> None:
     twitch.by_game[PLAIN_GAME_ID] = [stream("streamer", PLAIN_GAME_ID)]
 
     first = await checker.run()
-    assert first.sent == 3  # drop campaign + live stream to #1, reward campaign to #2
-    assert len(notifier.titles(1)) == 2 and len(notifier.titles(2)) == 1
+    # #1: drop campaign + live stream; #2: reward campaign + the chat-badge drop campaign
+    assert first.sent == 4
+    assert len(notifier.titles(1)) == 2 and len(notifier.titles(2)) == 2
     assert await storage.get_campaign(notifier_campaign_id(checker), "drop") is not None
 
     assert (await checker.run()).sent == 0
@@ -69,7 +70,7 @@ async def test_failed_delivery_is_retried_from_db(setup) -> None:
     assert notifier.titles(2) == []
     del notifier.status[2]
     await checker.run()
-    assert len(notifier.titles(2)) == 1
+    assert len(notifier.titles(2)) == 2
 
 
 async def test_gone_channel_is_removed_from_db(setup) -> None:

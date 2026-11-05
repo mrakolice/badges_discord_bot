@@ -48,6 +48,14 @@
 - [x] `src/main.py`: БД, APScheduler, `/health`, graceful shutdown по SIGTERM.
 - [x] `src/health.py` + healthcheck в compose.
 
+## 7a. Бейджи (сравнение с badgebase.de)
+- [x] Drops с бейджем в чат → подписчикам `/followbadges`, отметка в сообщениях.
+- [x] `/rewards` — все бейджи и награды, доступные сейчас; детали наград (инструкции, сроки).
+- [x] Каталог Helix `chat/badges/global` (миграция `0003`), анонсы новых бейджей, `/badges`,
+  `/badge`.
+- [ ] Обогащение датами и инструкциями из badgebase.de (iCal/API) — только с разрешения автора.
+- [ ] Число владельцев бейджа (PotatBotat) — проверить условия API.
+
 ## 8. Тестирование и деплой
 - [x] Smoke в Docker: сборка, bootstrap, миграции (повторный запуск — no-op), старт бота до логина.
 - [ ] E2E «Bot is ready» — нужен настоящий токен тестового бота.

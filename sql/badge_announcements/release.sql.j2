@@ -1,0 +1,4 @@
+DELETE FROM badge_deliveries
+WHERE channel_id = {{ channel_id | bind }}
+  AND set_id = {{ set_id | bind }}
+  AND version_id = {{ version_id | bind }};

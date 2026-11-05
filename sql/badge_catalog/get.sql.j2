@@ -1,0 +1,5 @@
+SELECT set_id, version_id, title, description, image_url_1x, image_url_2x, image_url_4x,
+       click_url, first_seen_at, last_seen_at
+FROM chat_badges
+WHERE set_id = {{ set_id | bind }}
+  AND version_id = {{ version_id | bind }};

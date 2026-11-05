@@ -140,6 +140,764 @@
     }
    ],
    "startAt": "2026-10-28T22:00:00.000Z"
+  },
+  {
+   "endAt": "2026-11-15T18:59:59.999Z",
+   "gameBoxArtURL": "https://static-cdn.jtvnw.net/ttv-boxart/21779-120x160.jpg",
+   "gameDisplayName": "League of Legends",
+   "gameId": "21779",
+   "rewards": [
+    {
+     "accountLinkURL": "https://www.twitch.tv/",
+     "allow": {
+      "channels": [
+       {
+        "displayName": "lolesportstw",
+        "id": "485855940",
+        "name": "lolesportstw"
+       },
+       {
+        "displayName": "ltaespanol",
+        "id": "1424757204",
+        "name": "ltaespanol"
+       },
+       {
+        "displayName": "lolesportsla",
+        "id": "142055874",
+        "name": "lolesportsla"
+       },
+       {
+        "displayName": "Riot Games",
+        "id": "36029255",
+        "name": "riotgames"
+       },
+       {
+        "displayName": "lolesports",
+        "id": "1278937468",
+        "name": "lolesports"
+       },
+       {
+        "displayName": "LCS",
+        "id": "124420521",
+        "name": "lcs"
+       },
+       {
+        "displayName": "LEC",
+        "id": "124422593",
+        "name": "lec"
+       },
+       {
+        "displayName": "LeagueofLegendsJP",
+        "id": "104833324",
+        "name": "leagueoflegendsjp"
+       },
+       {
+        "displayName": "leagueoflegendsth",
+        "id": "1103155299",
+        "name": "leagueoflegendsth"
+       },
+       {
+        "displayName": "CBLOL",
+        "id": "36511475",
+        "name": "cblol"
+       },
+       {
+        "displayName": "RTPArenaLoL",
+        "id": "13374246",
+        "name": "rtparenalol"
+       },
+       {
+        "displayName": "esport2tv",
+        "id": "24973791",
+        "name": "esport2tv"
+       },
+       {
+        "displayName": "telekomgoodgame",
+        "id": "1550842085",
+        "name": "telekomgoodgame"
+       },
+       {
+        "displayName": "LES",
+        "id": "1420579810",
+        "name": "les"
+       },
+       {
+        "displayName": "Nervarien",
+        "id": "25452510",
+        "name": "nervarien"
+       },
+       {
+        "displayName": "Fortuna",
+        "id": "107803559",
+        "name": "fortuna"
+       },
+       {
+        "displayName": "otplol_",
+        "id": "622498423",
+        "name": "otplol_"
+       },
+       {
+        "displayName": "HITPOINTCZ",
+        "id": "20607836",
+        "name": "hitpointcz"
+       },
+       {
+        "displayName": "Tolkin",
+        "id": "181357564",
+        "name": "tolkin"
+       },
+       {
+        "displayName": "RiotGamesTurkish",
+        "id": "36513760",
+        "name": "riotgamesturkish"
+       },
+       {
+        "displayName": "lolesports_ar",
+        "id": "437144416",
+        "name": "lolesports_ar"
+       },
+       {
+        "displayName": "adamshoutcaster",
+        "id": "141744336",
+        "name": "adamshoutcaster"
+       },
+       {
+        "displayName": "Akofena_",
+        "id": "474236515",
+        "name": "akofena_"
+       },
+       {
+        "displayName": "らいじん",
+        "id": "45839490",
+        "name": "alfrea"
+       },
+       {
+        "displayName": "Alois_NL",
+        "id": "122799408",
+        "name": "alois_nl"
+       },
+       {
+        "displayName": "Baiano",
+        "id": "140772558",
+        "name": "baiano"
+       },
+       {
+        "displayName": "BanaPlayzz",
+        "id": "433363015",
+        "name": "banaplayzz"
+       },
+       {
+        "displayName": "世誠",
+        "id": "128222917",
+        "name": "bbbb87"
+       },
+       {
+        "displayName": "Blaire",
+        "id": "451106403",
+        "name": "blaire"
+       },
+       {
+        "displayName": "Broeki",
+        "id": "41372534",
+        "name": "broeki"
+       },
+       {
+        "displayName": "Cabramaravilla",
+        "id": "122691064",
+        "name": "cabramaravilla"
+       },
+       {
+        "displayName": "Caedrel",
+        "id": "92038375",
+        "name": "caedrel"
+       },
+       {
+        "displayName": "Caltys",
+        "id": "127414443",
+        "name": "caltys"
+       },
+       {
+        "displayName": "coatpustmain",
+        "id": "49968279",
+        "name": "coatpustmain"
+       },
+       {
+        "displayName": "comp_lol",
+        "id": "165204409",
+        "name": "comp_lol"
+       },
+       {
+        "displayName": "Czekolad_",
+        "id": "133359333",
+        "name": "czekolad_"
+       },
+       {
+        "displayName": "Diamondprox_LoL",
+        "id": "42332234",
+        "name": "diamondprox_lol"
+       },
+       {
+        "displayName": "ducmanhblv",
+        "id": "159604284",
+        "name": "ducmanhblv"
+       },
+       {
+        "displayName": "dudstheboy",
+        "id": "30889146",
+        "name": "dudstheboy"
+       },
+       {
+        "displayName": "Dynquedo1",
+        "id": "115361391",
+        "name": "dynquedo1"
+       },
+       {
+        "displayName": "えんてぃ",
+        "id": "69600926",
+        "name": "entych"
+       },
+       {
+        "displayName": "EragonUK",
+        "id": "135191428",
+        "name": "eragonuk"
+       },
+       {
+        "displayName": "feviknight",
+        "id": "115780502",
+        "name": "feviknight"
+       },
+       {
+        "displayName": "FooYa",
+        "id": "58098825",
+        "name": "fooya"
+       },
+       {
+        "displayName": "frajgo_",
+        "id": "438504575",
+        "name": "frajgo_"
+       },
+       {
+        "displayName": "Freezecz",
+        "id": "26753250",
+        "name": "freezecz"
+       },
+       {
+        "displayName": "gtroubleinc",
+        "id": "117386066",
+        "name": "gtroubleinc"
+       },
+       {
+        "displayName": "Halpern",
+        "id": "30689180",
+        "name": "halpern"
+       },
+       {
+        "displayName": "HoangLuanBLV",
+        "id": "186322512",
+        "name": "hoangluanblv"
+       },
+       {
+        "displayName": "ibai",
+        "id": "83232866",
+        "name": "ibai"
+       },
+       {
+        "displayName": "imls",
+        "id": "26513896",
+        "name": "imls"
+       },
+       {
+        "displayName": "Jamada",
+        "id": "217210385",
+        "name": "jamada"
+       },
+       {
+        "displayName": "Jankos",
+        "id": "6094619",
+        "name": "jankos"
+       },
+       {
+        "displayName": "JimRsng",
+        "id": "24534372",
+        "name": "jimrsng"
+       },
+       {
+        "displayName": "Jonnijuro",
+        "id": "228428255",
+        "name": "jonnijuro"
+       },
+       {
+        "displayName": "JordiLMK",
+        "id": "153991013",
+        "name": "jordilmk"
+       },
+       {
+        "displayName": "Kamet0",
+        "id": "27115917",
+        "name": "kamet0"
+       },
+       {
+        "displayName": "KamusLoL",
+        "id": "98914728",
+        "name": "kamuslol"
+       },
+       {
+        "displayName": "咖撒",
+        "id": "83140564",
+        "name": "karsalol"
+       },
+       {
+        "displayName": "KenRhen",
+        "id": "82173521",
+        "name": "kenrhen"
+       },
+       {
+        "displayName": "kiittwy",
+        "id": "144924031",
+        "name": "kiittwy"
+       },
+       {
+        "displayName": "Lastcrosser",
+        "id": "134863913",
+        "name": "lastcrosser"
+       },
+       {
+        "displayName": "LightFuryLF",
+        "id": "146982508",
+        "name": "lightfurylf"
+       },
+       {
+        "displayName": "lol_nemesis",
+        "id": "86131599",
+        "name": "lol_nemesis"
+       },
+       {
+        "displayName": "Lourlo",
+        "id": "27842439",
+        "name": "lourlo"
+       },
+       {
+        "displayName": "MalzaharBerkut",
+        "id": "92737301",
+        "name": "malzaharberkut"
+       },
+       {
+        "displayName": "MercyPlaysTW",
+        "id": "246074082",
+        "name": "mercyplaystw"
+       },
+       {
+        "displayName": "Meteos",
+        "id": "38708489",
+        "name": "meteos"
+       },
+       {
+        "displayName": "mfreak00",
+        "id": "184578486",
+        "name": "mfreak00"
+       },
+       {
+        "displayName": "midbeast",
+        "id": "92113890",
+        "name": "midbeast"
+       },
+       {
+        "displayName": "MrsChimChim",
+        "id": "134104249",
+        "name": "mrschimchim"
+       },
+       {
+        "displayName": "muramina",
+        "id": "110005541",
+        "name": "muramina"
+       },
+       {
+        "displayName": "nahovsky",
+        "id": "105203178",
+        "name": "nahovsky"
+       },
+       {
+        "displayName": "NeVeR_LosEs",
+        "id": "29722828",
+        "name": "never_loses"
+       },
+       {
+        "displayName": "Nickdaboom",
+        "id": "54319112",
+        "name": "nickdaboom"
+       },
+       {
+        "displayName": "niikoletaa",
+        "id": "525152946",
+        "name": "niikoletaa"
+       },
+       {
+        "displayName": "Nix",
+        "id": "67708794",
+        "name": "nix"
+       },
+       {
+        "displayName": "Nymaera",
+        "id": "57557944",
+        "name": "nymaera"
+       },
+       {
+        "displayName": "Obsess3",
+        "id": "56924673",
+        "name": "obsess3"
+       },
+       {
+        "displayName": "Paresz",
+        "id": "53818082",
+        "name": "paresz"
+       },
+       {
+        "displayName": "Pobelter",
+        "id": "25080754",
+        "name": "pobelter"
+       },
+       {
+        "displayName": "PresenceLoL",
+        "id": "264453364",
+        "name": "presencelol"
+       },
+       {
+        "displayName": "銀城サイネ",
+        "id": "1476573725",
+        "name": "saineginjo"
+       },
+       {
+        "displayName": "Send0o",
+        "id": "33734881",
+        "name": "send0o"
+       },
+       {
+        "displayName": "千燈ゆうひ",
+        "id": "1097252496",
+        "name": "sendo_yuuhi"
+       },
+       {
+        "displayName": "Skyyart",
+        "id": "70298660",
+        "name": "skyyart"
+       },
+       {
+        "displayName": "Smurf_tv",
+        "id": "182899347",
+        "name": "smurf_tv"
+       },
+       {
+        "displayName": "sneakylol",
+        "id": "24538518",
+        "name": "sneakylol"
+       },
+       {
+        "displayName": "Starky",
+        "id": "86195014",
+        "name": "starky"
+       },
+       {
+        "displayName": "しゃるる",
+        "id": "123278702",
+        "name": "syaruru3"
+       },
+       {
+        "displayName": "たかやスペシャル",
+        "id": "93305727",
+        "name": "takayaspecial"
+       },
+       {
+        "displayName": "Takluz",
+        "id": "86690831",
+        "name": "takluz"
+       },
+       {
+        "displayName": "Terenas",
+        "id": "30264374",
+        "name": "terenas"
+       },
+       {
+        "displayName": "Teshrak",
+        "id": "29836234",
+        "name": "teshrak"
+       },
+       {
+        "displayName": "TL_Nero",
+        "id": "92078908",
+        "name": "tl_nero"
+       },
+       {
+        "displayName": "ToadAmarillo",
+        "id": "27045041",
+        "name": "toadamarillo"
+       },
+       {
+        "displayName": "TraYtoNlol",
+        "id": "81446331",
+        "name": "traytonlol"
+       },
+       {
+        "displayName": "TTobias_lol",
+        "id": "790796770",
+        "name": "ttobias_lol"
+       },
+       {
+        "displayName": "Viper",
+        "id": "56399221",
+        "name": "viper"
+       },
+       {
+        "displayName": "wuant",
+        "id": "25515122",
+        "name": "wuant"
+       },
+       {
+        "displayName": "Xnapycz",
+        "id": "27370971",
+        "name": "xnapycz"
+       },
+       {
+        "displayName": "YamatoCannon",
+        "id": "25075983",
+        "name": "yamatocannon"
+       },
+       {
+        "displayName": "yutapongo",
+        "id": "65737149",
+        "name": "yutapongo"
+       },
+       {
+        "displayName": "Zaboutine",
+        "id": "43976593",
+        "name": "zaboutine"
+       },
+       {
+        "displayName": "粒鷗滴",
+        "id": "40083477",
+        "name": "zod0416"
+       },
+       {
+        "displayName": "PsychopathicPoro",
+        "id": "530776645",
+        "name": "psychopathicporo"
+       },
+       {
+        "displayName": "KMTlol",
+        "id": "264230873",
+        "name": "kmtlol"
+       },
+       {
+        "displayName": "evinmotv",
+        "id": "74803819",
+        "name": "evinmotv"
+       },
+       {
+        "displayName": "Sola",
+        "id": "44864184",
+        "name": "sola"
+       },
+       {
+        "displayName": "Dantes",
+        "id": "466139555",
+        "name": "dantes"
+       },
+       {
+        "displayName": "Jillipuff",
+        "id": "885513971",
+        "name": "jillipuff"
+       },
+       {
+        "displayName": "TheRock7_",
+        "id": "41530075",
+        "name": "therock7_"
+       },
+       {
+        "displayName": "Doublelift",
+        "id": "40017619",
+        "name": "doublelift"
+       },
+       {
+        "displayName": "Paoloidolo",
+        "id": "29750090",
+        "name": "paoloidolo"
+       },
+       {
+        "displayName": "yeTz",
+        "id": "27680990",
+        "name": "yetz"
+       },
+       {
+        "displayName": "EduarK0ng",
+        "id": "111439505",
+        "name": "eduark0ng"
+       },
+       {
+        "displayName": "TcK10",
+        "id": "499928989",
+        "name": "tck10"
+       },
+       {
+        "displayName": "jukes",
+        "id": "77208443",
+        "name": "jukes"
+       },
+       {
+        "displayName": "maisesportsbr",
+        "id": "424571482",
+        "name": "maisesportsbr"
+       },
+       {
+        "displayName": "yvonnie",
+        "id": "45184940",
+        "name": "yvonnie"
+       },
+       {
+        "displayName": "Tealzlol",
+        "id": "96161253",
+        "name": "tealzlol"
+       },
+       {
+        "displayName": "Scarra",
+        "id": "22253819",
+        "name": "scarra"
+       },
+       {
+        "displayName": "itsmedettol",
+        "id": "238414356",
+        "name": "itsmedettol"
+       },
+       {
+        "displayName": "KatEvolved",
+        "id": "126632539",
+        "name": "katevolved"
+       },
+       {
+        "displayName": "Sannttosa",
+        "id": "840780913",
+        "name": "sannttosa"
+       },
+       {
+        "displayName": "Elizent",
+        "id": "90588405",
+        "name": "elizent"
+       },
+       {
+        "displayName": "lolmechs",
+        "id": "42686036",
+        "name": "lolmechs"
+       },
+       {
+        "displayName": "alwaysplanahealol",
+        "id": "93293941",
+        "name": "alwaysplanahealol"
+       },
+       {
+        "displayName": "zven_lol1",
+        "id": "56040094",
+        "name": "zven_lol1"
+       },
+       {
+        "displayName": "Blaber",
+        "id": "49941379",
+        "name": "blaber"
+       },
+       {
+        "displayName": "C9Thanatos",
+        "id": "833537365",
+        "name": "c9thanatos"
+       },
+       {
+        "displayName": "C9Loki",
+        "id": "661123779",
+        "name": "c9loki"
+       },
+       {
+        "displayName": "BarbaKahn",
+        "id": "190774669",
+        "name": "barbakahn"
+       },
+       {
+        "displayName": "Tactical",
+        "id": "52277205",
+        "name": "tactical"
+       },
+       {
+        "displayName": "Vulcan_LoL",
+        "id": "122371240",
+        "name": "vulcan_lol"
+       },
+       {
+        "displayName": "IWDominate",
+        "id": "25653002",
+        "name": "iwdominate"
+       },
+       {
+        "displayName": "arrowlol",
+        "id": "58534131",
+        "name": "arrowlol"
+       },
+       {
+        "displayName": "VeigarV2",
+        "id": "211735609",
+        "name": "veigarv2"
+       }
+      ],
+      "isEnabled": true
+     },
+     "description": "Support the biggest esports event of the year to earn the Worlds 2026 Supporter chat badge!",
+     "detailsURL": "https://help.twitch.tv/s/article/twitch-chat-badges-guide",
+     "endAt": "2026-11-15T18:59:59.999Z",
+     "eventBasedDrops": [],
+     "game": {
+      "displayName": "League of Legends",
+      "id": "21779",
+      "slug": "league-of-legends"
+     },
+     "id": "b66c6ae7-42bc-4e67-b0ad-8ab0d9897d26",
+     "imageURL": "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/4efb87e1-50f3-4192-9f4e-24f485d64f44.png",
+     "name": "Worlds 2026 Chat Badge",
+     "owner": {
+      "id": "d32de13d-937e-4196-8198-1a7f875f295a",
+      "name": "Twitch Gaming"
+     },
+     "startAt": "2026-10-14T19:00:00Z",
+     "status": "ACTIVE",
+     "timeBasedDrops": [
+      {
+       "benefitEdges": [
+        {
+         "benefit": {
+          "createdAt": "2026-10-13T22:55:42.93Z",
+          "distributionType": "BADGE",
+          "entitlementLimit": 1,
+          "game": {
+           "id": "21779",
+           "name": "League of Legends"
+          },
+          "id": "37ea3450-c759-11f1-9665-0a58a9feac02",
+          "imageAssetURL": "https://static-cdn.jtvnw.net/twitch-quests-assets/REWARD/63c01e1e-ba77-446a-9c3b-821c019cacad.png",
+          "isIosAvailable": false,
+          "name": "Worlds 2026 Supporter",
+          "ownerOrganization": {
+           "id": "d32de13d-937e-4196-8198-1a7f875f295a",
+           "name": "Twitch Gaming"
+          }
+         },
+         "entitlementLimit": 1
+        }
+       ],
+       "endAt": "2026-11-15T18:59:59.999Z",
+       "id": "26fee398-c759-11f1-a917-0a58a9feac02",
+       "name": "Worlds 2026 Supporter",
+       "preconditionDrops": null,
+       "requiredMinutesWatched": 0,
+       "requiredSubs": 1,
+       "startAt": "2026-10-14T19:00:00Z"
+      }
+     ]
+    }
+   ],
+   "startAt": "2026-10-14T19:00:00.000Z"
   }
  ]
 }

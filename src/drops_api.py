@@ -1,8 +1,9 @@
 import logging
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
@@ -13,6 +14,8 @@ BASE_URL = "https://twitch-drops-api.sunkwi.com"
 USER_AGENT = "twitch-badge-bot/0.1"
 # Requests at exactly the window edge risk a 429, and refused calls still count.
 SAFETY_MARGIN = timedelta(seconds=5)
+DROPS_CAMPAIGNS_URL = "https://www.twitch.tv/drops/campaigns"
+BADGE_DISTRIBUTION = "BADGE"
 
 
 # --- API models (field names come from Twitch via Sunkwi; extra fields are ignored) ---
@@ -44,6 +47,10 @@ class Benefit(_ApiModel):
     name: str
     image_asset_url: str | None = Field(default=None, alias="imageAssetURL")
     distribution_type: str | None = Field(default=None, alias="distributionType")
+
+    @property
+    def is_badge(self) -> bool:
+        return self.distribution_type == BADGE_DISTRIBUTION
 
 
 class BenefitEdge(_ApiModel):
@@ -86,6 +93,25 @@ class DropCampaign(_ApiModel):
         return list(seen.values())
 
     @property
+    def badge_benefits(self) -> list[Benefit]:
+        return [b for b in self.benefits if b.is_badge]
+
+    @property
+    def url(self) -> str:
+        return f"{DROPS_CAMPAIGNS_URL}?dropID={self.id}"
+
+    def minutes_for(self, benefit_id: str) -> int:
+        """Watch time of the cheapest drop that grants this benefit."""
+        return min(
+            (
+                d.required_minutes_watched
+                for d in self.time_based_drops
+                if any(e.benefit.id == benefit_id for e in d.benefit_edges)
+            ),
+            default=0,
+        )
+
+    @property
     def max_minutes_watched(self) -> int:
         return max((d.required_minutes_watched for d in self.time_based_drops), default=0)
 
@@ -114,6 +140,7 @@ class RewardItem(_ApiModel):
     name: str
     earnable_until: datetime | None = Field(default=None, alias="earnableUntil")
     redemption_url: str | None = Field(default=None, alias="redemptionURL")
+    redemption_instructions: str | None = Field(default=None, alias="redemptionInstructions")
     thumbnail_image: ImageRef | None = Field(default=None, alias="thumbnailImage")
 
 
@@ -140,6 +167,10 @@ class RewardCampaign(_ApiModel):
     )
     rewards: list[RewardItem] = Field(default_factory=list)
 
+    @property
+    def url(self) -> str:
+        return self.about_url or self.external_url or DROPS_CAMPAIGNS_URL
+
     def is_active(self, now: datetime) -> bool:
         # Sunkwi reports status UNKNOWN for reward campaigns, so only dates are reliable.
         return self.starts_at <= now < self.ends_at
@@ -162,6 +193,59 @@ class RewardsSnapshot(_ApiModel):
 
     def active_campaigns(self, now: datetime) -> list[RewardCampaign]:
         return [c for c in self.campaigns if c.is_active(now)]
+
+
+@dataclass(frozen=True, slots=True)
+class BadgeOffer:
+    """A badge (or reward-campaign item) that can be earned right now."""
+
+    name: str
+    source: Literal["drop", "reward"]
+    campaign_name: str
+    campaign_url: str
+    ends_at: datetime
+    minutes: int
+    game_name: str | None = None
+    image_url: str | None = None
+    only_channels: tuple[str, ...] = ()
+
+
+def badge_offers(
+    drops: DropsSnapshot | None, rewards: RewardsSnapshot | None, now: datetime
+) -> list[BadgeOffer]:
+    """Chat badges from active Drops plus items of active reward campaigns."""
+    offers: list[BadgeOffer] = []
+    for game in drops.games if drops else []:
+        for campaign in game.active_campaigns(now):
+            channels = tuple(c.display_name or c.name for c in campaign.restricted_channels)
+            offers += [
+                BadgeOffer(
+                    name=b.name,
+                    source="drop",
+                    campaign_name=campaign.name,
+                    campaign_url=campaign.url,
+                    ends_at=campaign.end_at,
+                    minutes=campaign.minutes_for(b.id),
+                    game_name=game.game_display_name,
+                    image_url=b.image_asset_url,
+                    only_channels=channels,
+                )
+                for b in campaign.badge_benefits
+            ]
+    for campaign in rewards.active_campaigns(now) if rewards else []:
+        offers += [
+            BadgeOffer(
+                name=item.name,
+                source="reward",
+                campaign_name=campaign.name,
+                campaign_url=item.redemption_url or campaign.url,
+                ends_at=item.earnable_until or campaign.ends_at,
+                minutes=campaign.unlock_requirements.minute_watched_goal,
+                image_url=item.thumbnail_image.url if item.thumbnail_image else None,
+            )
+            for item in campaign.rewards
+        ]
+    return sorted(offers, key=lambda o: o.ends_at)
 
 
 # --- client ---

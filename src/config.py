@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     stream_notify_top_n: Annotated[int, Field(ge=0, le=20)] = 3
     ending_soon_hours: PositiveInt = 24
     campaign_retention_days: PositiveInt = 30
+    # Helix is cheap, but the badge catalog rarely changes more often than this.
+    badge_sync_interval_minutes: Annotated[int, Field(ge=15)] = 60
+    badge_announce_window_days: PositiveInt = 14
     bot_http_port: Annotated[int, Field(ge=0, le=65535)] = 8080
     log_level: str = "INFO"
 

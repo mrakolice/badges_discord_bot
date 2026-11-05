@@ -15,6 +15,11 @@ Discord-бот, который живёт в Docker-контейнере и ув
 - **Доставка ровно один раз**: `claim_*` (вставка с `ON CONFLICT`) до отправки, `release_*` при
   ошибке. Не заменять на «проверить, потом записать».
 - Live-стримы — только те, что дают дропы (`allow.channels` или топ-N по игре).
+- **Каталог бейджей** (`BadgeWatcher`, Helix `chat/badges/global`): первая синхронизация —
+  тихая база (`announce = false`), иначе подписчиков завалит сотнями старых бейджей. Анонсы —
+  через `claim/release_badge_delivery`, окно для поздних подписчиков — 14 дней.
+- Drops с наградой `distributionType = BADGE` идут и подписчикам игры, и `/followbadges`;
+  ключ доставки общий, поэтому дублей нет.
 - Интервал планировщика = минимальный интервал + 2×`SAFETY_MARGIN` (`src/main.py`), иначе
   каждая вторая проверка упирается в лимит.
 
@@ -24,8 +29,8 @@ Discord-бот, который живёт в Docker-контейнере и ув
 
 1. **Весь SQL — только в файлах `sql/<домен>/<запрос>.sql.j2`.** В `.py` SQL-литералов нет
    (это проверяет `tests/unit/test_sql_tree.py`). Тестовый SQL — в `tests/sql/`.
-2. Домены: `channel_registry`, `follows`, `campaign_tracking`, `live_alerts`, `bot_state`,
-   `schema_versioning`, `migrations`.
+2. Домены: `channel_registry`, `follows`, `campaign_tracking`, `announcements`, `live_alerts`,
+   `badge_catalog`, `badge_announcements`, `bot_state`, `schema_versioning`, `migrations`.
 3. Значения подставляются **только** через `{{ x | bind }}` (→ `$1`, значение уходит в args),
    имена таблиц/колонок — через `{{ x | ident }}` (whitelist + кавычки). Голый `{{ x }}`
    бросает `SqlTemplateError`. Логика `{% if %}` — для опциональных частей запроса.
@@ -80,6 +85,7 @@ twitch_badge_bot/
 │   ├── drops_api.py            # клиент Sunkwi API
 │   ├── twitch.py               # клиент Twitch Helix
 │   ├── checker.py              # логика polling
+│   ├── badge_watcher.py        # каталог глобальных бейджей Helix + анонсы новых
 │   ├── notifications.py        # Discord embed
 │   ├── bot.py                  # discord.py Bot + Cog + DiscordNotifier
 │   └── health.py               # GET /health (aiohttp)

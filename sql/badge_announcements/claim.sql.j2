@@ -1,0 +1,5 @@
+{# Atomic "announce once" per channel and badge version. #}
+INSERT INTO badge_deliveries (channel_id, set_id, version_id)
+VALUES ({{ channel_id | bind }}, {{ set_id | bind }}, {{ version_id | bind }})
+ON CONFLICT DO NOTHING
+RETURNING delivered_at;

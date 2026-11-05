@@ -13,6 +13,8 @@ EXPECTED_TABLES = {
     "public.state",
     "public.stream_notifications",
     "public.campaign_deliveries",
+    "public.chat_badges",
+    "public.badge_deliveries",
     "migrations_meta.schema_migrations",
 }
 

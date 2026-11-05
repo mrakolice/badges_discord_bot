@@ -5,13 +5,17 @@ import httpx
 import pytest
 import respx
 
-from src.drops_api import BASE_URL, SAFETY_MARGIN, DropsApiClient, Route
+from src.drops_api import BASE_URL, SAFETY_MARGIN, DropsApiClient, Route, badge_offers
 from tests.fakes import (
     ALLOWED_LOGIN,
+    BADGE_GAME_ID,
+    BADGE_NAME,
     BEFORE_ENDING,
     PLAIN_GAME_ID,
     RESTRICTED_GAME_ID,
+    drops_snapshot,
     fixture_payload,
+    rewards_snapshot,
 )
 
 DROPS_URL = f"{BASE_URL}/v2/drops"
@@ -57,6 +61,7 @@ async def test_parses_drops_and_rewards(http, state) -> None:
     assert {g.game_id for g in api.drops.active_games(BEFORE_ENDING)} == {
         PLAIN_GAME_ID,
         RESTRICTED_GAME_ID,
+        BADGE_GAME_ID,
     }
     restricted = api.drops.find_game(RESTRICTED_GAME_ID)
     assert restricted is not None
@@ -144,7 +149,7 @@ async def test_malformed_game_is_skipped(http, state) -> None:
     respx.get(DROPS_URL).respond(json=payload)
     api = client(http, state)
     assert await api.refresh(Route.DROPS, BEFORE_ENDING)
-    assert api.drops is not None and len(api.drops.games) == 2
+    assert api.drops is not None and len(api.drops.games) == 3
 
 
 @respx.mock
@@ -154,3 +159,28 @@ async def test_api_key_header(http, state) -> None:
     assert route.calls.last.request.headers["X-API-Key"] == "jdk_secret"
     await client(http, MemoryState()).refresh(Route.DROPS, BEFORE_ENDING)
     assert "X-API-Key" not in route.calls.last.request.headers
+
+
+def test_badge_benefits_are_detected() -> None:
+    snapshot = drops_snapshot()
+    game = snapshot.find_game(BADGE_GAME_ID)
+    assert game is not None
+    campaign = game.campaigns[0]
+    assert [b.name for b in campaign.badge_benefits] == [BADGE_NAME]
+    plain = snapshot.find_game(PLAIN_GAME_ID)
+    assert plain is not None and plain.campaigns[0].badge_benefits == []
+
+
+def test_badge_offers_merge_drops_and_rewards() -> None:
+    offers = badge_offers(drops_snapshot(), rewards_snapshot(), BEFORE_ENDING)
+    by_source = {o.source: o for o in offers}
+    drop = by_source["drop"]
+    assert drop.name == BADGE_NAME and drop.game_name == "League of Legends"
+    assert drop.only_channels and drop.campaign_url.endswith(drop.campaign_url.split("=")[-1])
+    reward = by_source["reward"]
+    assert reward.minutes == 20 and reward.game_name is None
+    assert [o.ends_at for o in offers] == sorted(o.ends_at for o in offers)
+
+
+def test_no_offers_without_data() -> None:
+    assert badge_offers(None, None, BEFORE_ENDING) == []

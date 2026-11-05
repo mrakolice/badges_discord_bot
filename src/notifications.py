@@ -3,8 +3,8 @@ from datetime import datetime
 
 import discord
 
-from src.db.records import Subscription
-from src.drops_api import DropCampaign, GameDrops, RewardCampaign
+from src.db.records import ChatBadge, Subscription
+from src.drops_api import BadgeOffer, DropCampaign, GameDrops, RewardCampaign
 from src.twitch import TwitchStream
 
 # Discord limits: https://discord.com/developers/docs/resources/message#embed-object-embed-limits
@@ -22,22 +22,26 @@ ENDING_COLOR = discord.Color.orange()
 INFO_COLOR = discord.Color.blurple()
 
 DROPS_INVENTORY_URL = "https://www.twitch.tv/drops/inventory"
-DROPS_CAMPAIGNS_URL = "https://www.twitch.tv/drops/campaigns"
 
 
 def build_drop_embed(
     game: GameDrops, campaign: DropCampaign, *, ending_soon: bool = False
 ) -> discord.Embed:
-    title = f"⏰ Скоро закончится: {campaign.name}" if ending_soon else f"🎁 {campaign.name}"
+    badges = campaign.badge_benefits
+    icon = "🏅" if badges else "🎁"
+    title = f"⏰ Скоро закончится: {campaign.name}" if ending_soon else f"{icon} {campaign.name}"
     embed = discord.Embed(
         title=_cut(title, TITLE_LIMIT),
-        url=f"{DROPS_CAMPAIGNS_URL}?dropID={campaign.id}",
+        url=campaign.url,
         description=_cut(campaign.description or "", DESCRIPTION_LIMIT) or None,
         color=ENDING_COLOR if ending_soon else DROP_COLOR,
     )
     embed.set_author(name=game.game_display_name, url=_game_url(campaign))
-    if campaign.benefits:
-        rewards = "\n".join(f"• {b.name}" for b in campaign.benefits)
+    if badges:
+        lines = "\n".join(f"• {b.name} — {_watch(campaign.minutes_for(b.id))}" for b in badges)
+        embed.add_field(name="🏅 Бейдж в чат", value=_cut(lines, FIELD_VALUE_LIMIT), inline=False)
+    if others := [b for b in campaign.benefits if not b.is_badge]:
+        rewards = "\n".join(f"• {b.name}" for b in others)
         embed.add_field(name="Награды", value=_cut(rewards, FIELD_VALUE_LIMIT), inline=False)
     if campaign.max_minutes_watched:
         embed.add_field(name="Смотреть", value=_minutes(campaign.max_minutes_watched))
@@ -50,8 +54,9 @@ def build_drop_embed(
         )
     if campaign.account_link_url:
         embed.add_field(name="Привязка аккаунта", value=f"[Привязать]({campaign.account_link_url})")
-    if game.game_box_art_url:
-        embed.set_thumbnail(url=game.game_box_art_url)
+    thumbnail = next((b.image_asset_url for b in badges if b.image_asset_url), None)
+    if thumbnail or game.game_box_art_url:
+        embed.set_thumbnail(url=thumbnail or game.game_box_art_url)
     return embed
 
 
@@ -59,24 +64,66 @@ def build_reward_embed(campaign: RewardCampaign, *, ending_soon: bool = False) -
     title = f"⏰ Скоро закончится: {campaign.name}" if ending_soon else f"🏅 {campaign.name}"
     embed = discord.Embed(
         title=_cut(title, TITLE_LIMIT),
-        url=campaign.about_url or campaign.external_url or DROPS_CAMPAIGNS_URL,
+        url=campaign.url,
         description=_cut(campaign.summary or "", DESCRIPTION_LIMIT) or None,
         color=ENDING_COLOR if ending_soon else REWARD_COLOR,
     )
     if campaign.brand:
         embed.set_author(name=campaign.brand)
     if campaign.rewards:
-        rewards = "\n".join(f"• {r.name}" for r in campaign.rewards)
-        embed.add_field(name="Награды", value=_cut(rewards, FIELD_VALUE_LIMIT), inline=False)
+        lines = []
+        for item in campaign.rewards:
+            line = f"[{item.name}]({item.redemption_url})" if item.redemption_url else item.name
+            if item.earnable_until and item.earnable_until != campaign.ends_at:
+                line += f" — до {_ts(item.earnable_until, 'd')}"
+            lines.append(f"• {line}")
+        embed.add_field(
+            name="Награды", value=_cut("\n".join(lines), FIELD_VALUE_LIMIT), inline=False
+        )
+    instructions = [campaign.instructions or ""]
+    instructions += [r.redemption_instructions or "" for r in campaign.rewards]
+    if text := "\n".join(dict.fromkeys(i.strip() for i in instructions if i.strip())):
+        embed.add_field(name="Как получить", value=_cut(text, FIELD_VALUE_LIMIT), inline=False)
     requirements = campaign.unlock_requirements
     if requirements.minute_watched_goal:
         embed.add_field(name="Смотреть", value=_minutes(requirements.minute_watched_goal))
     if requirements.subs_goal:
         embed.add_field(name="Подписок", value=str(requirements.subs_goal))
     embed.add_field(name="Заканчивается", value=_ts(campaign.ends_at))
-    if campaign.image and campaign.image.url:
-        embed.set_thumbnail(url=campaign.image.url)
+    item_image = next((r.thumbnail_image.url for r in campaign.rewards if r.thumbnail_image), None)
+    if image := item_image or (campaign.image.url if campaign.image else None):
+        embed.set_thumbnail(url=image)
     return embed
+
+
+def build_badge_embed(
+    badge: ChatBadge, offers: Sequence[BadgeOffer], *, new: bool = False
+) -> discord.Embed:
+    """A global chat badge from the Helix catalog, with campaigns that grant it (if known)."""
+    title = f"🆕 Новый бейдж: {badge.title}" if new else f"🏅 {badge.title}"
+    embed = discord.Embed(
+        title=_cut(title, TITLE_LIMIT),
+        url=badge.click_url or (offers[0].campaign_url if offers else None),
+        description=_cut(badge.description or "", DESCRIPTION_LIMIT) or None,
+        color=REWARD_COLOR,
+    )
+    embed.set_thumbnail(url=badge.image_url_4x)
+    if offers:
+        embed.add_field(
+            name="Как получить", value=_cut(_offer_lines(offers), FIELD_VALUE_LIMIT), inline=False
+        )
+    embed.add_field(name="Обнаружен", value=_ts(badge.first_seen_at, "D"))
+    embed.add_field(name="ID", value=f"`{badge.set_id}` v{badge.version_id}")
+    return embed
+
+
+def build_badges_list_embeds(badges: Sequence[ChatBadge], title: str) -> list[discord.Embed]:
+    lines = [
+        f"**{b.title}** — с {_ts(b.first_seen_at, 'd')}"
+        + (f" · [ссылка]({b.click_url})" if b.click_url else "")
+        for b in badges
+    ]
+    return _list_embeds(title, lines, REWARD_COLOR, empty="Ничего не найдено.")
 
 
 def build_live_embed(game: GameDrops, stream: TwitchStream) -> discord.Embed:
@@ -101,14 +148,13 @@ def build_games_list_embeds(games: Sequence[GameDrops], now: datetime) -> list[d
     return _list_embeds("🎮 Игры с активными Drops", lines, DROP_COLOR, empty="Сейчас пусто.")
 
 
-def build_rewards_list_embeds(campaigns: Sequence[RewardCampaign]) -> list[discord.Embed]:
-    lines = [
-        f"**[{c.name}]({c.about_url or c.external_url or DROPS_CAMPAIGNS_URL})** — до "
-        f"{_ts(c.ends_at, 'd')}"
-        for c in sorted(campaigns, key=lambda c: c.ends_at)
-    ]
+def build_offers_list_embeds(offers: Sequence[BadgeOffer]) -> list[discord.Embed]:
+    lines = [_offer_line(o, with_name=True) for o in offers]
     return _list_embeds(
-        "🏅 Активные reward/badge-кампании", lines, REWARD_COLOR, empty="Сейчас пусто."
+        "🏅 Бейджи и награды, которые можно получить сейчас",
+        lines,
+        REWARD_COLOR,
+        empty="Сейчас пусто.",
     )
 
 
@@ -129,14 +175,18 @@ def build_help_embed() -> discord.Embed:
     )
     embed.add_field(
         name="Просмотр",
-        value="`/games` — игры с Drops\n`/rewards` — badge-кампании\n`/list` — подписки канала",
+        value=(
+            "`/games` — игры с Drops\n`/rewards` — бейджи и награды, доступные сейчас\n"
+            "`/badges` — каталог бейджей Twitch\n`/badge` — карточка бейджа\n"
+            "`/list` — подписки канала"
+        ),
         inline=False,
     )
     embed.add_field(
         name="Подписки (нужно право «Управлять каналами»)",
         value=(
             "`/follow <игра>` — Drops игры\n`/unfollow <id>` — отписаться по ID из /list\n"
-            "`/followbadges` / `/unfollowbadges` — badge-кампании\n"
+            "`/followbadges` / `/unfollowbadges` — новые бейджи и badge-кампании\n"
             "`/checknow` — проверить сейчас"
         ),
         inline=False,
@@ -182,6 +232,29 @@ def _list_embeds(
         )
         for i, chunk in enumerate(chunks, start=1)
     ]
+
+
+def _offer_lines(offers: Sequence[BadgeOffer]) -> str:
+    return "\n".join(f"• {_offer_line(o, with_name=False)}" for o in offers)
+
+
+def _offer_line(offer: BadgeOffer, *, with_name: bool) -> str:
+    where = f"{offer.game_name}: {offer.campaign_name}" if offer.game_name else offer.campaign_name
+    head = (
+        f"**[{offer.name}]({offer.campaign_url})** — {where}"
+        if with_name
+        else (f"[{where}]({offer.campaign_url})")
+    )
+    parts = [head, _watch(offer.minutes), f"до {_ts(offer.ends_at, 'd')}"]
+    if offer.only_channels:
+        shown = ", ".join(offer.only_channels[:3])
+        more = f" +{len(offer.only_channels) - 3}" if len(offer.only_channels) > 3 else ""
+        parts.append(f"только у {shown}{more}")
+    return ", ".join(parts)
+
+
+def _watch(minutes: int) -> str:
+    return f"смотреть {_minutes(minutes)}" if minutes else "без просмотра"
 
 
 def _game_url(campaign: DropCampaign) -> str | None:

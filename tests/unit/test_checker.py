@@ -7,6 +7,7 @@ from src.checker import Checker, CheckerSettings, SendStatus
 from src.db.records import ALL_REWARDS
 from tests.fakes import (
     ALLOWED_LOGIN,
+    BADGE_GAME_ID,
     BEFORE_ENDING,
     ENDING_SOON,
     PLAIN_GAME_ID,
@@ -115,13 +116,35 @@ async def test_new_campaign_delivered_once_per_subscribed_channel(env: Env) -> N
 async def test_unsubscribed_campaigns_are_still_tracked(env: Env) -> None:
     await env.checker.run()
     assert env.notifier.sent == []
-    assert len(env.storage.campaigns) == 3
+    assert len(env.storage.campaigns) == 4
 
 
-async def test_rewards_go_to_badge_subscribers(env: Env) -> None:
+async def test_badge_subscribers_get_rewards_and_badge_drops(env: Env) -> None:
     env.storage.follow(5, "reward", ALL_REWARDS)
     await env.checker.run()
-    assert len(env.notifier.titles(5)) == 1 and env.notifier.titles(5)[0].startswith("🏅")
+    titles = env.notifier.titles(5)
+    assert len(titles) == 2 and all(t.startswith("🏅") for t in titles)
+    assert any("Worlds 2026" in t for t in titles)
+
+
+async def test_badge_drop_sent_once_to_channel_following_game_and_badges(env: Env) -> None:
+    env.storage.follow(1, "game", BADGE_GAME_ID)
+    env.storage.follow(1, "reward", ALL_REWARDS)
+    await env.checker.run()
+    assert len([t for t in env.notifier.titles(1) if "Worlds 2026" in t]) == 1
+
+
+async def test_non_badge_drops_do_not_reach_badge_subscribers(env: Env) -> None:
+    env.storage.follow(5, "reward", ALL_REWARDS)
+    await env.checker.run()
+    assert not any("The Other Side" in (e.author.name or "") for _, e in env.notifier.sent)
+
+
+async def test_followbadges_delivers_current_badge_campaigns(env: Env) -> None:
+    env.storage.follow(5, "reward", ALL_REWARDS)
+    assert await env.checker.deliver_badges_to_channel(5) == 2
+    await env.checker.run()
+    assert len(env.notifier.titles(5)) == 2
 
 
 async def test_campaign_first_seen_ending_soon_gets_one_combined_message() -> None:

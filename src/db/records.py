@@ -35,3 +35,29 @@ class CampaignSeen(_Record):
     first_seen_at: datetime
     last_seen_at: datetime
     data_json: dict[str, Any]
+
+
+class BadgeData(_Record):
+    """One version of a global chat badge as Helix reports it."""
+
+    set_id: str
+    version_id: str
+    title: str
+    description: str = ""
+    image_url_1x: str
+    image_url_2x: str
+    image_url_4x: str
+    click_url: str | None = None
+
+
+class ChatBadge(_Record):
+    set_id: str
+    version_id: str
+    title: str
+    description: str
+    image_url_1x: str
+    image_url_2x: str
+    image_url_4x: str
+    click_url: str | None
+    first_seen_at: datetime
+    last_seen_at: datetime
